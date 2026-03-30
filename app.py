@@ -790,7 +790,7 @@ def main():
     with hcol:
         live_html = '<span class="live-badge">LIVE</span>' if week_is_live else ""
         st.markdown(
-            f"<h1 style='margin-bottom:0'>📈 Konkurs Portfelowy UEK 2025 {live_html}</h1>",
+            f"<h1 style='margin-bottom:0'>Konkurs Portfelowy | Rynki Finansowe | UEK | 2026 {live_html}</h1>",
             unsafe_allow_html=True,
         )
         if pending.get("waiting_for_positions") and not open_wks:
