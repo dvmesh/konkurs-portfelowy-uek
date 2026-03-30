@@ -906,10 +906,9 @@ def main():
         )
 
     # ── TABS ──────────────────────────────────────────────────────────
-    tab_chart, tab_rank, tab_candles, tab_pos, tab_admin = st.tabs([
-        "📈 Historia portfeli",
+    tab_chart, tab_rank, tab_pos, tab_admin = st.tabs([
+        "📈 Historia & rynek live",
         "🏆 Ranking",
-        "🕯️ Rynek live",
         "📋 Pozycje",
         "⚙️ Admin",
     ])
@@ -933,6 +932,19 @@ def main():
             for i, inst in enumerate(INSTRUMENTS):
                 with ic[i]:
                     st.metric(INST_SHORT[inst], f"{(cum[inst]-1)*100:+.2f}%")
+
+            # ── Candlestick charts (hourly, live) ─────────────────────
+            if HAS_YF and week_opens:
+                st.markdown("---")
+                st.markdown(
+                    "##### 🕯️ Rynek live — świece godzinowe (ostatnie 7 dni)  "
+                    "&nbsp;&nbsp;🔵 otwarcie tygodnia &nbsp; 🟢/🔴 kurs live &nbsp; — &nbsp;"
+                    "**odśw. co 5 min**"
+                )
+                candlestick_fragment(week_opens)
+            elif HAS_YF:
+                st.markdown("---")
+                st.info("Wykresy świecowe pojawią się gdy tydzień jest otwarty z cenami otwarcia.")
 
             with st.expander("📊 Tabela cen tygodniowych"):
                 price_rows = []
@@ -972,21 +984,6 @@ def main():
             )
         else:
             st.info("Ranking pojawi się po rozliczeniu pierwszego tygodnia.")
-
-    # ── TAB: LIVE CANDLES ─────────────────────────────────────────────
-    with tab_candles:
-        if not HAS_YF:
-            st.error("Zainstaluj `yfinance` (`pip install yfinance`).")
-        elif not week_opens:
-            st.info("Wykresy live będą dostępne gdy tydzień jest otwarty z cenami otwarcia.")
-        else:
-            st.markdown(
-                "Świeczkowe wykresy **godzinowe** (ostatnie 7 dni).  "
-                "🔵 linia = cena otwarcia tygodnia wg stooq.  "
-                "🟢/🔴 linia = aktualna cena.  "
-                "**Automatyczne odświeżanie co 5 minut.**"
-            )
-            candlestick_fragment(week_opens)
 
     # ── TAB: POSITIONS ────────────────────────────────────────────────
     with tab_pos:
