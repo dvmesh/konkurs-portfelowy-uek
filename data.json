@@ -618,21 +618,6 @@
         }
       }
     },
-    {
-      "label": "30.03-06.04",
-      "week_start": "2026-03-30",
-      "completed": false,
-      "prices": {
-        "open": {
-          "SPX": 0.0,
-          "XAUUSD": 0.0,
-          "BOND10Y": 0.0,
-          "EURUSD": 0.0
-        },
-        "close": null
-      },
-      "positions": {}
-    }
   ],
   "pending_week": {
     "label": "30.03-06.04",
