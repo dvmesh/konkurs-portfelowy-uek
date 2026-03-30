@@ -823,16 +823,16 @@ def main():
 
         m1, m2, m3, m4 = st.columns(4)
         with m1:
-            st.metric("🥇 Lider (po rozliczeniu)", leader_g,
+            st.metric("Lider (po rozliczeniu)", leader_g,
                       f"{leader_v:.3f} jp ({chg_leader:+.3f})")
         with m2:
-            st.metric("⌀ Średnia konkursu", f"{avg_v:.3f} jp",
+            st.metric("Średnia konkursu", f"{avg_v:.3f} jp",
                       f"{avg_v - 100:+.3f} od startu")
         with m3:
-            st.metric("📊 Benchmark 4×25%", f"{bench_v:.3f} jp",
+            st.metric("Benchmark 4×25%", f"{bench_v:.3f} jp",
                       f"{bench_v - 100:+.3f} od startu")
         with m4:
-            st.metric("✅ Pokonało benchmark",
+            st.metric("Pokonało benchmark",
                       f"{beat_bench}/{len(final)} grup",
                       f"{beat_bench/len(final)*100:.0f}%")
         st.markdown("")
@@ -884,7 +884,7 @@ def main():
                 st.markdown("---")
                 st.info("Wykresy świecowe pojawią się gdy tydzień jest otwarty z cenami otwarcia.")
 
-            with st.expander("📊 Tabela cen tygodniowych"):
+            with st.expander("Tabela cen tygodniowych"):
                 price_rows = []
                 for week in [w for w in data["weeks"]
                              if w.get("completed") and (w.get("prices") or {}).get("close")]:
