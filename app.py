@@ -1,8 +1,3 @@
-"""
-Konkurs Portfelowy UEK 2025
-Live Streamlit dashboard
-"""
-
 import streamlit as st
 import pandas as pd
 import plotly.graph_objects as go
@@ -15,10 +10,6 @@ try:
     HAS_YF = True
 except ImportError:
     HAS_YF = False
-
-# ═══════════════════════════════════════════════════════════════════════
-# PAGE CONFIG
-# ═══════════════════════════════════════════════════════════════════════
 
 st.set_page_config(
     page_title="Konkurs Portfelowy | UEK 2025",
@@ -83,10 +74,6 @@ thead tr th { background: #161b22 !important; }
 </style>
 """, unsafe_allow_html=True)
 
-# ═══════════════════════════════════════════════════════════════════════
-# CONSTANTS
-# ═══════════════════════════════════════════════════════════════════════
-
 INSTRUMENTS = ["SPX", "XAUUSD", "BOND10Y", "EURUSD"]
 INST_LABELS = {
     "SPX":     "S&P 500",
@@ -97,7 +84,6 @@ INST_LABELS = {
 INST_SHORT = {"SPX": "SPX", "XAUUSD": "Złoto", "BOND10Y": "Obligacje 10Y", "EURUSD": "EUR/USD"}
 MEDALS = ["🥇", "🥈", "🥉"]
 
-# yfinance tickers – best proxy for each instrument
 YF_TICKERS = {
     "SPX":     "^GSPC",
     "XAUUSD":  "GC=F",
@@ -113,10 +99,6 @@ GROUP_ORDER = [
     "Grupa F","Grupa G","Grupa H","Grupa I","Grupa J",
     "Grupa K","Grupa L","Grupa M","Grupa N",
 ]
-
-# ═══════════════════════════════════════════════════════════════════════
-# DATA LAYER
-# ═══════════════════════════════════════════════════════════════════════
 
 def _gh_headers():
     token = st.secrets.get("github_token", "")
@@ -172,10 +154,6 @@ def save_data(data: dict, sha):
     except Exception as e:
         return False, f"Błąd zapisu: {e}"
 
-# ═══════════════════════════════════════════════════════════════════════
-# LIVE MARKET DATA  (yfinance)
-# ═══════════════════════════════════════════════════════════════════════
-
 @st.cache_data(ttl=55, show_spinner=False)
 def fetch_live_prices() -> dict:
     if not HAS_YF:
@@ -208,10 +186,6 @@ def fetch_hourly_df(inst: str):
         return df
     except Exception:
         return None
-
-# ═══════════════════════════════════════════════════════════════════════
-# COMPUTATION
-# ═══════════════════════════════════════════════════════════════════════
 
 def price_changes(prices: dict) -> dict:
     op = prices.get("open") or {}
@@ -266,10 +240,6 @@ def build_history(data: dict):
             hist[g].append(portfolio_value(hist[g][-1], pos, chg))
 
     return hist, bench, labels
-
-# ═══════════════════════════════════════════════════════════════════════
-# HISTORICAL EQUITY CHART
-# ═══════════════════════════════════════════════════════════════════════
 
 def build_equity_chart(hist, bench, labels, groups_meta):
     fig   = go.Figure()
@@ -330,10 +300,6 @@ def build_equity_chart(hist, bench, labels, groups_meta):
     )
     return fig
 
-# ═══════════════════════════════════════════════════════════════════════
-# CANDLESTICK CHART  (hourly, 2×2 grid)
-# ═══════════════════════════════════════════════════════════════════════
-
 def build_candlestick_chart(week_opens: dict, live_prices: dict):
     fig = make_subplots(
         rows=2, cols=2,
@@ -360,7 +326,6 @@ def build_candlestick_chart(week_opens: dict, live_prices: dict):
                 showlegend=False, whiskerwidth=0.3,
             ), row=row, col=col)
 
-        # Week-open reference line (blue dashed)
         if week_opens.get(inst):
             fig.add_hline(
                 y=week_opens[inst],
@@ -371,7 +336,6 @@ def build_candlestick_chart(week_opens: dict, live_prices: dict):
                 row=row, col=col,
             )
 
-        # Live price (green/red solid)
         lp = live_prices.get(inst)
         if lp and week_opens.get(inst):
             chg_pct = (lp / week_opens[inst] - 1) * 100
@@ -386,7 +350,6 @@ def build_candlestick_chart(week_opens: dict, live_prices: dict):
                 row=row, col=col,
             )
 
-    # Remove range sliders and style all sub-axes
     axis_style = dict(gridcolor="#21262d", linecolor="#30363d")
     updates = {}
     for i in range(1, 5):
@@ -407,10 +370,6 @@ def build_candlestick_chart(week_opens: dict, live_prices: dict):
         margin=dict(l=60, r=60, t=55, b=40),
     )
     return fig
-
-# ═══════════════════════════════════════════════════════════════════════
-# RANKING BUILDER
-# ═══════════════════════════════════════════════════════════════════════
 
 def build_ranking_df(hist, bench, groups_meta,
                      live_chg=None, open_week_positions=None):
@@ -454,10 +413,6 @@ def build_ranking_df(hist, bench, groups_meta,
             "vs Benchmark":       r["vs_bench"],
         })
     return pd.DataFrame(result)
-
-# ═══════════════════════════════════════════════════════════════════════
-# AUTO-REFRESHING FRAGMENTS
-# ═══════════════════════════════════════════════════════════════════════
 
 @st.fragment(run_every=60)
 def live_ticker_bar(week_opens: dict):
@@ -558,7 +513,6 @@ def live_ranking_fragment(hist, bench, groups_meta,
         },
     )
 
-    # year sub-rankings
     st.markdown("---")
     c1, c2 = st.columns(2)
     for widget_col, yr in zip([c1, c2], [1, 2]):
@@ -592,10 +546,6 @@ def candlestick_fragment(week_opens: dict):
         "⏱ Dane godzinowe z Yahoo Finance (odśw. co 5 min). "
         "Ceny live orientacyjne – rozliczenie wg stooq.pl."
     )
-
-# ═══════════════════════════════════════════════════════════════════════
-# POSITIONS TAB
-# ═══════════════════════════════════════════════════════════════════════
 
 def show_positions_tab(data, hist):
     pending  = data.get("pending_week", {})
@@ -662,9 +612,6 @@ Po otrzymaniu dyspozycji zostaną one wprowadzone do systemu.
             with cols[i]:
                 st.metric(f"Otwarcie – {INST_SHORT[inst]}", opens.get(inst, "—"))
 
-# ═══════════════════════════════════════════════════════════════════════
-# ADMIN PANEL
-# ═══════════════════════════════════════════════════════════════════════
 
 def admin_panel(data, sha):
     st.header("⚙️  Panel administratora")
@@ -822,10 +769,6 @@ def _admin_close_week(data, sha):
             if ok:
                 st.rerun()
 
-# ═══════════════════════════════════════════════════════════════════════
-# MAIN
-# ═══════════════════════════════════════════════════════════════════════
-
 def main():
     data, sha = load_data()
     if not data:
@@ -843,7 +786,6 @@ def main():
     open_wk_pos  = active_week.get("positions") or {} if active_week else {}
     week_is_live = bool(active_week and week_opens and open_wk_pos and HAS_YF)
 
-    # ── HEADER ────────────────────────────────────────────────────────
     hcol, scol = st.columns([3, 1])
     with hcol:
         live_html = '<span class="live-badge">🔴 LIVE</span>' if week_is_live else ""
@@ -865,13 +807,11 @@ def main():
             unsafe_allow_html=True,
         )
 
-    # ── LIVE TICKER BAR ───────────────────────────────────────────────
     if week_opens and HAS_YF:
         st.markdown("")
         live_ticker_bar(week_opens)
         st.markdown("")
 
-    # ── KPI METRICS ───────────────────────────────────────────────────
     if n_done >= 1:
         final      = {g: v[-1] for g, v in hist.items()}
         sorted_g   = sorted(final.items(), key=lambda x: x[1], reverse=True)
@@ -905,7 +845,6 @@ def main():
             unsafe_allow_html=True,
         )
 
-    # ── TABS ──────────────────────────────────────────────────────────
     tab_chart, tab_rank, tab_pos, tab_admin = st.tabs([
         "📈 Historia & rynek live",
         "🏆 Ranking",
@@ -913,7 +852,6 @@ def main():
         "⚙️ Admin",
     ])
 
-    # ── TAB: HISTORY ──────────────────────────────────────────────────
     with tab_chart:
         if n_done >= 1:
             st.plotly_chart(
@@ -974,7 +912,6 @@ def main():
         else:
             st.info("Wykres pojawi się po rozliczeniu pierwszego tygodnia.")
 
-    # ── TAB: RANKING ──────────────────────────────────────────────────
     with tab_rank:
         if n_done >= 1:
             live_ranking_fragment(
@@ -985,11 +922,9 @@ def main():
         else:
             st.info("Ranking pojawi się po rozliczeniu pierwszego tygodnia.")
 
-    # ── TAB: POSITIONS ────────────────────────────────────────────────
     with tab_pos:
         show_positions_tab(data, hist)
 
-    # ── TAB: ADMIN ────────────────────────────────────────────────────
     with tab_admin:
         admin_panel(data, sha)
 

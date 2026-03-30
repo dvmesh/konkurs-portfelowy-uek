@@ -1,0 +1,11 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(python3 -m venv /tmp/xlsx_venv)",
+      "Bash(/tmp/xlsx_venv/bin/pip install:*)",
+      "Bash(/tmp/xlsx_venv/bin/python3 -c \":*)",
+      "Bash(python3 -m venv /tmp/kp_venv)",
+      "Bash(/tmp/kp_venv/bin/pip install:*)"
+    ]
+  }
+}
