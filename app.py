@@ -12,7 +12,7 @@ except ImportError:
     HAS_YF = False
 
 st.set_page_config(
-    page_title="Konkurs Portfelowy | UEK 2025",
+    page_title="Konkurs Portfelowy | Rynki Finansowe | UEK | 2026",
     page_icon="📈",
     layout="wide",
     initial_sidebar_state="collapsed",
@@ -276,7 +276,7 @@ def build_equity_chart(hist, bench, labels, groups_meta):
         hovertemplate="<b>Średnia</b><br>%{x}: %{y:.3f} jp<extra></extra>",
     ))
     fig.add_trace(go.Scatter(
-        x=labels, y=bench, name="📊 Benchmark 4×25%",
+        x=labels, y=bench, name="Benchmark 4×25%",
         mode="lines+markers",
         line=dict(color="#FF6B35", width=2.5, dash="dash"),
         marker=dict(size=7, symbol="square"),
@@ -462,7 +462,7 @@ def live_ranking_fragment(hist, bench, groups_meta,
         is_live  = any(v is not None for v in live_chg.values())
 
     label_html = (
-        '<span class="live-badge">🔴 LIVE</span>' if is_live
+        '<span class="live-badge">LIVE</span>' if is_live
         else '<span style="color:#586069;font-size:0.8rem"> (po ostatnim rozliczeniu)</span>'
     )
     st.markdown(f"### 🏆 Ranking &nbsp;{label_html}", unsafe_allow_html=True)
@@ -505,7 +505,7 @@ def live_ranking_fragment(hist, bench, groups_meta,
             "#":                  st.column_config.TextColumn("#",           width=50),
             "Rok":                st.column_config.TextColumn("Rok",         width=70),
             "Rozliczony (j.p.)":  st.column_config.NumberColumn("Rozliczony",format="%.3f"),
-            "Live (j.p.)":        st.column_config.TextColumn("🔴 Live",     width=100),
+            "Live (j.p.)":        st.column_config.TextColumn("Live",        width=100),
             "Tydzień Δ":          st.column_config.NumberColumn("Tyg. Δ",    format="%+.3f"),
             "Od startu Δ":        st.column_config.NumberColumn("Od startu", format="%+.3f"),
             "vs Benchmark":       st.column_config.NumberColumn("vs Bench",  format="%+.3f"),
@@ -614,7 +614,7 @@ Po otrzymaniu dyspozycji zostaną one wprowadzone do systemu.
 
 
 def admin_panel(data, sha):
-    st.header("⚙️  Panel administratora")
+    st.header("Panel administratora")
 
     if not st.session_state.get("admin_ok"):
         pwd = st.text_input("Hasło", type="password", key="admin_pwd_input")
@@ -627,13 +627,13 @@ def admin_panel(data, sha):
                 st.error("Nieprawidłowe hasło")
         return
 
-    st.success("✅ Zalogowano")
+    st.success("Zalogowano")
     if st.button("Wyloguj"):
         st.session_state.admin_ok = False
         st.rerun()
     st.divider()
 
-    t1, t2, t3 = st.tabs(["📅 Otwórz tydzień", "📝 Pozycje", "🏁 Zamknij tydzień"])
+    t1, t2, t3 = st.tabs(["Otwórz tydzień", "Pozycje", "Zamknij tydzień"])
     with t1:
         _admin_open_week(data, sha)
     with t2:
@@ -725,7 +725,7 @@ def _admin_positions(data, sha):
                         )
                 new_pos[g] = gpos
 
-        if st.form_submit_button("💾 Zapisz pozycje"):
+        if st.form_submit_button("Zapisz pozycje"):
             week["positions"] = new_pos
             if "pending_week" in data:
                 data["pending_week"]["waiting_for_positions"] = False
@@ -788,17 +788,17 @@ def main():
 
     hcol, scol = st.columns([3, 1])
     with hcol:
-        live_html = '<span class="live-badge">🔴 LIVE</span>' if week_is_live else ""
+        live_html = '<span class="live-badge">LIVE</span>' if week_is_live else ""
         st.markdown(
             f"<h1 style='margin-bottom:0'>📈 Konkurs Portfelowy UEK 2025 {live_html}</h1>",
             unsafe_allow_html=True,
         )
         if pending.get("waiting_for_positions") and not open_wks:
-            st.markdown("🟡 **Status:** Oczekiwanie na dyspozycje od prowadzącego")
+            st.markdown("**Status:** Oczekiwanie na dyspozycje od prowadzącego")
         elif active_week:
-            st.markdown(f"🟢 **Tydzień aktywny:** {active_week['label']}")
+            st.markdown(f"**Tydzień aktywny:** {active_week['label']}")
         elif data.get("weeks"):
-            st.markdown(f"⚪ **Ostatni zamknięty:** {data['weeks'][-1]['label']}")
+            st.markdown(f"**Ostatni zamknięty:** {data['weeks'][-1]['label']}")
     with scol:
         st.markdown(
             f"<div style='text-align:right;color:#586069;font-size:0.82rem;"
@@ -846,10 +846,10 @@ def main():
         )
 
     tab_chart, tab_rank, tab_pos, tab_admin = st.tabs([
-        "📈 Historia & rynek live",
-        "🏆 Ranking",
-        "📋 Pozycje",
-        "⚙️ Admin",
+        "Historia & rynek live",
+        "Ranking",
+        "Pozycje",
+        "Admin",
     ])
 
     with tab_chart:
@@ -876,7 +876,7 @@ def main():
                 st.markdown("---")
                 st.markdown(
                     "##### 🕯️ Rynek live — świece godzinowe (ostatnie 7 dni)  "
-                    "&nbsp;&nbsp;🔵 otwarcie tygodnia &nbsp; 🟢/🔴 kurs live &nbsp; — &nbsp;"
+                    "&nbsp;&nbsp; otwarcie tygodnia &nbsp; kurs live &nbsp; — &nbsp;"
                     "**odśw. co 5 min**"
                 )
                 candlestick_fragment(week_opens)
