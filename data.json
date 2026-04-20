@@ -1,120 +1,1211 @@
 {
   "groups": {
-    "Grupa 1":  {"members": ["Kacper Cieślak", "Piotr Sarniak"], "year": 1},
-    "Grupa 2":  {"members": ["Stanisław Magiera", "Jonasz Krynicki", "Adrian Czerwiecki"], "year": 1},
-    "Grupa 3":  {"members": ["Dominik Skwarczek", "Szymon Taźbirek", "Marcel Skorodzień"], "year": 1},
-    "Grupa 4":  {"members": ["Hubert Ciechanowski", "Daria Bors", "Filip Krotowski"], "year": 1},
-    "Grupa 5":  {"members": ["Magdalena Jamróz", "Magdalena Depta", "Małgorzata Abram"], "year": 1},
-    "Grupa 6":  {"members": ["Bartłomiej Richter", "Krzysztof Paś", "Mateusz Ryska"], "year": 1},
-    "Grupa 7":  {"members": ["Mateusz Śmiech", "Piotr Wieczorek", "Maks Widła"], "year": 1},
-    "Grupa 8":  {"members": ["Maciej Haspel", "Nikodem Greń", "Aleksandra Araś"], "year": 1},
-    "Grupa 9":  {"members": ["Patryk Ulicki", "Matti Saarela", "Mikołaj Smółka"], "year": 1},
-    "Grupa 10": {"members": ["Szymon Zabawa", "Dawid Żuk", "Janusz Trześniowski"], "year": 1},
-    "Grupa 11": {"members": ["Jakub Fronc", "Patryk Siejka", "Dominik Olwiński"], "year": 1},
-    "Grupa 12": {"members": ["Dominik Ryk", "Natalia Rzeszutek"], "year": 1},
-    "Grupa 13": {"members": ["Wiktor Hussakowski", "Antoni Bulsiewicz", "Jędrzej Jackowski"], "year": 1},
-    "Grupa 14": {"members": ["Tomasz Kaczorowski", "Jakub Czyszczon"], "year": 1},
-    "Grupa 15": {"members": ["Stefan Monetti", "Kateryna Yerchyk"], "year": 1},
-    "Grupa A":  {"members": ["Glib Radchenko", "Oliwer Mamak", "Piotr Mycek"], "year": 2},
-    "Grupa B":  {"members": ["Jakub Jakóbczyk", "Michał Klim", "Patryk Kubisiak"], "year": 2},
-    "Grupa C":  {"members": ["Adrian Pikulski", "Mikołaj Stąsiek", "Jakub Noga"], "year": 2},
-    "Grupa D":  {"members": ["Krzysztof Warych", "Dominika Różalska", "Bartłomiej Rzekęć"], "year": 2},
-    "Grupa E":  {"members": ["Alicja Lechowicz", "Patrycja Mach", "Leon Bugaj"], "year": 2},
-    "Grupa F":  {"members": ["Jakub Wiącek", "Bartłomiej Karwacki", "Filip Grygierczyk"], "year": 2},
-    "Grupa G":  {"members": ["Angela Chiocchi", "Małgorzata Guzik", "Łukasz Janiewicz"], "year": 2},
-    "Grupa H":  {"members": ["Karina Kozik", "Jakub Burek"], "year": 2},
-    "Grupa I":  {"members": ["Maja Płonka", "Julia Majdak", "Igor Sikora"], "year": 2},
-    "Grupa J":  {"members": ["Szymon Skierkowski", "Filip Schindler", "Konrad Jarosz"], "year": 2},
-    "Grupa K":  {"members": ["Ewelina Lisak", "Martyna Pinda", "Bartłomiej Zwierzchowski"], "year": 2},
-    "Grupa L":  {"members": ["Szymon Dzwonnik", "Kamil Dziekan", "Michał Bartos"], "year": 2},
-    "Grupa M":  {"members": ["Urszula Jemioło", "Natalia Obara", "Weronika Lewoń"], "year": 2},
-    "Grupa N":  {"members": ["Błażej Niewiarowski", "Natalia Rogowska"], "year": 2}
+    "Grupa 1": {
+      "members": [
+        "Kacper Cieślak",
+        "Piotr Sarniak"
+      ],
+      "year": 1
+    },
+    "Grupa 2": {
+      "members": [
+        "Stanisław Magiera",
+        "Jonasz Krynicki",
+        "Adrian Czerwiecki"
+      ],
+      "year": 1
+    },
+    "Grupa 3": {
+      "members": [
+        "Dominik Skwarczek",
+        "Szymon Taźbirek",
+        "Marcel Skorodzień"
+      ],
+      "year": 1
+    },
+    "Grupa 4": {
+      "members": [
+        "Hubert Ciechanowski",
+        "Daria Bors",
+        "Filip Krotowski"
+      ],
+      "year": 1
+    },
+    "Grupa 5": {
+      "members": [
+        "Magdalena Jamróz",
+        "Magdalena Depta",
+        "Małgorzata Abram"
+      ],
+      "year": 1
+    },
+    "Grupa 6": {
+      "members": [
+        "Bartłomiej Richter",
+        "Krzysztof Paś",
+        "Mateusz Ryska"
+      ],
+      "year": 1
+    },
+    "Grupa 7": {
+      "members": [
+        "Mateusz Śmiech",
+        "Piotr Wieczorek",
+        "Maks Widła"
+      ],
+      "year": 1
+    },
+    "Grupa 8": {
+      "members": [
+        "Maciej Haspel",
+        "Nikodem Greń",
+        "Aleksandra Araś"
+      ],
+      "year": 1
+    },
+    "Grupa 9": {
+      "members": [
+        "Patryk Ulicki",
+        "Matti Saarela",
+        "Mikołaj Smółka"
+      ],
+      "year": 1
+    },
+    "Grupa 10": {
+      "members": [
+        "Szymon Zabawa",
+        "Dawid Żuk",
+        "Janusz Trześniowski"
+      ],
+      "year": 1
+    },
+    "Grupa 11": {
+      "members": [
+        "Jakub Fronc",
+        "Patryk Siejka",
+        "Dominik Olwiński"
+      ],
+      "year": 1
+    },
+    "Grupa 12": {
+      "members": [
+        "Dominik Ryk",
+        "Natalia Rzeszutek"
+      ],
+      "year": 1
+    },
+    "Grupa 13": {
+      "members": [
+        "Wiktor Hussakowski",
+        "Antoni Bulsiewicz",
+        "Jędrzej Jackowski"
+      ],
+      "year": 1
+    },
+    "Grupa 14": {
+      "members": [
+        "Tomasz Kaczorowski",
+        "Jakub Czyszczon"
+      ],
+      "year": 1
+    },
+    "Grupa 15": {
+      "members": [
+        "Stefan Monetti",
+        "Kateryna Yerchyk"
+      ],
+      "year": 1
+    },
+    "Grupa A": {
+      "members": [
+        "Glib Radchenko",
+        "Oliwer Mamak",
+        "Piotr Mycek"
+      ],
+      "year": 2
+    },
+    "Grupa B": {
+      "members": [
+        "Jakub Jakóbczyk",
+        "Michał Klim",
+        "Patryk Kubisiak"
+      ],
+      "year": 2
+    },
+    "Grupa C": {
+      "members": [
+        "Adrian Pikulski",
+        "Mikołaj Stąsiek",
+        "Jakub Noga"
+      ],
+      "year": 2
+    },
+    "Grupa D": {
+      "members": [
+        "Krzysztof Warych",
+        "Dominika Różalska",
+        "Bartłomiej Rzekęć"
+      ],
+      "year": 2
+    },
+    "Grupa E": {
+      "members": [
+        "Alicja Lechowicz",
+        "Patrycja Mach",
+        "Leon Bugaj"
+      ],
+      "year": 2
+    },
+    "Grupa F": {
+      "members": [
+        "Jakub Wiącek",
+        "Bartłomiej Karwacki",
+        "Filip Grygierczyk"
+      ],
+      "year": 2
+    },
+    "Grupa G": {
+      "members": [
+        "Angela Chiocchi",
+        "Małgorzata Guzik",
+        "Łukasz Janiewicz"
+      ],
+      "year": 2
+    },
+    "Grupa H": {
+      "members": [
+        "Karina Kozik",
+        "Jakub Burek"
+      ],
+      "year": 2
+    },
+    "Grupa I": {
+      "members": [
+        "Maja Płonka",
+        "Julia Majdak",
+        "Igor Sikora"
+      ],
+      "year": 2
+    },
+    "Grupa J": {
+      "members": [
+        "Szymon Skierkowski",
+        "Filip Schindler",
+        "Konrad Jarosz"
+      ],
+      "year": 2
+    },
+    "Grupa K": {
+      "members": [
+        "Ewelina Lisak",
+        "Martyna Pinda",
+        "Bartłomiej Zwierzchowski"
+      ],
+      "year": 2
+    },
+    "Grupa L": {
+      "members": [
+        "Szymon Dzwonnik",
+        "Kamil Dziekan",
+        "Michał Bartos"
+      ],
+      "year": 2
+    },
+    "Grupa M": {
+      "members": [
+        "Urszula Jemioło",
+        "Natalia Obara",
+        "Weronika Lewoń"
+      ],
+      "year": 2
+    },
+    "Grupa N": {
+      "members": [
+        "Błażej Niewiarowski",
+        "Natalia Rogowska"
+      ],
+      "year": 2
+    }
   },
   "weeks": [
     {
       "label": "16.03 – 20.03",
-      "week_start": "2025-03-16",
+      "week_start": "2026-03-16",
       "completed": true,
       "prices": {
-        "open":  {"SPX": 6674.37, "XAUUSD": 5024.88, "BOND10Y": 4.262,  "EURUSD": 1.14299},
-        "close": {"SPX": 6506.48, "XAUUSD": 4493.95, "BOND10Y": 4.384,  "EURUSD": 1.15716}
+        "open": {
+          "SPX": 6674.37,
+          "XAUUSD": 5024.88,
+          "BOND10Y": 4.262,
+          "EURUSD": 1.14299
+        },
+        "close": {
+          "SPX": 6506.48,
+          "XAUUSD": 4493.95,
+          "BOND10Y": 4.384,
+          "EURUSD": 1.15716
+        }
       },
       "positions": {
-        "Grupa 1":  {"SPX": -25,   "XAUUSD": -25,   "BOND10Y": 0,     "EURUSD": -50},
-        "Grupa 2":  {"SPX": -50,   "XAUUSD":  30,   "BOND10Y": 20,    "EURUSD":   0},
-        "Grupa 3":  {"SPX": -20,   "XAUUSD": -10,   "BOND10Y": 45,    "EURUSD": -25},
-        "Grupa 4":  {"SPX": -35,   "XAUUSD":   0,   "BOND10Y": 45,    "EURUSD": -20},
-        "Grupa 5":  {"SPX": -35,   "XAUUSD":  35,   "BOND10Y": -15,   "EURUSD":  15},
-        "Grupa 6":  {"SPX":  70,   "XAUUSD":   0,   "BOND10Y": 0,     "EURUSD":  30},
-        "Grupa 7":  {"SPX": -30,   "XAUUSD": -30,   "BOND10Y": 0,     "EURUSD": -40},
-        "Grupa 8":  {"SPX":  40,   "XAUUSD":  20,   "BOND10Y": 20,    "EURUSD":  20},
-        "Grupa 9":  {"SPX":   0,   "XAUUSD":   0,   "BOND10Y": 20,    "EURUSD":   0},
-        "Grupa 10": {"SPX":   0,   "XAUUSD": -30,   "BOND10Y": 40,    "EURUSD": -30},
-        "Grupa 11": {"SPX":  25,   "XAUUSD": -25,   "BOND10Y": 25,    "EURUSD": -25},
-        "Grupa 12": {"SPX": -60,   "XAUUSD":   0,   "BOND10Y": 40,    "EURUSD":   0},
-        "Grupa 13": {"SPX":   0,   "XAUUSD": -50,   "BOND10Y": 50,    "EURUSD":   0},
-        "Grupa 14": {"SPX":  50,   "XAUUSD":   0,   "BOND10Y": 0,     "EURUSD":   0},
-        "Grupa 15": {"SPX":  10,   "XAUUSD":  40,   "BOND10Y": 50,    "EURUSD":   0},
-        "Grupa A":  {"SPX": -30,   "XAUUSD":  70,   "BOND10Y": 0,     "EURUSD":   0},
-        "Grupa B":  {"SPX":  50,   "XAUUSD":   0,   "BOND10Y": 0,     "EURUSD": -50},
-        "Grupa C":  {"SPX": -30,   "XAUUSD": -40,   "BOND10Y": 0,     "EURUSD": -30},
-        "Grupa D":  {"SPX":  40,   "XAUUSD":  60,   "BOND10Y": 0,     "EURUSD":   0},
-        "Grupa E":  {"SPX": -70,   "XAUUSD":  30,   "BOND10Y": 0,     "EURUSD":   0},
-        "Grupa F":  {"SPX": -40,   "XAUUSD": -25,   "BOND10Y": 25,    "EURUSD": -10},
-        "Grupa G":  {"SPX": -50,   "XAUUSD": -50,   "BOND10Y": 0,     "EURUSD":   0},
-        "Grupa H":  {"SPX":  70,   "XAUUSD":  15,   "BOND10Y": 0,     "EURUSD":   0},
-        "Grupa I":  {"SPX": -50,   "XAUUSD":  50,   "BOND10Y": 0,     "EURUSD":   0},
-        "Grupa J":  {"SPX": -70,   "XAUUSD":  30,   "BOND10Y": 0,     "EURUSD":   0},
-        "Grupa K":  {"SPX": -50,   "XAUUSD": -50,   "BOND10Y": 0,     "EURUSD":   0},
-        "Grupa L":  {"SPX": -50,   "XAUUSD": -50,   "BOND10Y": 0,     "EURUSD":   0},
-        "Grupa M":  {"SPX": -40,   "XAUUSD": -40,   "BOND10Y": 0,     "EURUSD":   0},
-        "Grupa N":  {"SPX": 100,   "XAUUSD":   0,   "BOND10Y": 0,     "EURUSD":   0}
+        "Grupa 1": {
+          "SPX": -25.0,
+          "XAUUSD": -25.0,
+          "BOND10Y": 0.0,
+          "EURUSD": -50.0
+        },
+        "Grupa 2": {
+          "SPX": -50.0,
+          "XAUUSD": 30.0,
+          "BOND10Y": 20.0,
+          "EURUSD": 0.0
+        },
+        "Grupa 3": {
+          "SPX": -20.0,
+          "XAUUSD": -10.0,
+          "BOND10Y": 45.0,
+          "EURUSD": -25.0
+        },
+        "Grupa 4": {
+          "SPX": -35.0,
+          "XAUUSD": 0.0,
+          "BOND10Y": 45.0,
+          "EURUSD": -20.0
+        },
+        "Grupa 5": {
+          "SPX": -35.0,
+          "XAUUSD": 35.0,
+          "BOND10Y": -15.0,
+          "EURUSD": 15.0
+        },
+        "Grupa 6": {
+          "SPX": 70.0,
+          "XAUUSD": 0.0,
+          "BOND10Y": 0.0,
+          "EURUSD": 30.0
+        },
+        "Grupa 7": {
+          "SPX": -30.0,
+          "XAUUSD": -30.0,
+          "BOND10Y": 0.0,
+          "EURUSD": -40.0
+        },
+        "Grupa 8": {
+          "SPX": 40.0,
+          "XAUUSD": 20.0,
+          "BOND10Y": 20.0,
+          "EURUSD": 20.0
+        },
+        "Grupa 9": {
+          "SPX": 0.0,
+          "XAUUSD": 0.0,
+          "BOND10Y": 20.0,
+          "EURUSD": 0.0
+        },
+        "Grupa 10": {
+          "SPX": 0.0,
+          "XAUUSD": -30.0,
+          "BOND10Y": 40.0,
+          "EURUSD": -30.0
+        },
+        "Grupa 11": {
+          "SPX": 25.0,
+          "XAUUSD": -25.0,
+          "BOND10Y": 25.0,
+          "EURUSD": -25.0
+        },
+        "Grupa 12": {
+          "SPX": -60.0,
+          "XAUUSD": 0.0,
+          "BOND10Y": 40.0,
+          "EURUSD": 0.0
+        },
+        "Grupa 13": {
+          "SPX": 0.0,
+          "XAUUSD": -50.0,
+          "BOND10Y": 50.0,
+          "EURUSD": 0.0
+        },
+        "Grupa 14": {
+          "SPX": 50.0,
+          "XAUUSD": 0.0,
+          "BOND10Y": 0.0,
+          "EURUSD": 0.0
+        },
+        "Grupa 15": {
+          "SPX": 10.0,
+          "XAUUSD": 40.0,
+          "BOND10Y": 50.0,
+          "EURUSD": 0.0
+        },
+        "Grupa A": {
+          "SPX": -30.0,
+          "XAUUSD": 70.0,
+          "BOND10Y": 0.0,
+          "EURUSD": 0.0
+        },
+        "Grupa B": {
+          "SPX": 50.0,
+          "XAUUSD": 0.0,
+          "BOND10Y": 0.0,
+          "EURUSD": -50.0
+        },
+        "Grupa C": {
+          "SPX": -30.0,
+          "XAUUSD": -40.0,
+          "BOND10Y": 0.0,
+          "EURUSD": -30.0
+        },
+        "Grupa D": {
+          "SPX": 40.0,
+          "XAUUSD": 60.0,
+          "BOND10Y": 0.0,
+          "EURUSD": 0.0
+        },
+        "Grupa E": {
+          "SPX": -70.0,
+          "XAUUSD": 30.0,
+          "BOND10Y": 0.0,
+          "EURUSD": 0.0
+        },
+        "Grupa F": {
+          "SPX": -40.0,
+          "XAUUSD": -25.0,
+          "BOND10Y": 25.0,
+          "EURUSD": -10.0
+        },
+        "Grupa G": {
+          "SPX": -50.0,
+          "XAUUSD": -50.0,
+          "BOND10Y": 0.0,
+          "EURUSD": 0.0
+        },
+        "Grupa H": {
+          "SPX": 70.0,
+          "XAUUSD": 15.0,
+          "BOND10Y": 0.0,
+          "EURUSD": 0.0
+        },
+        "Grupa I": {
+          "SPX": -50.0,
+          "XAUUSD": 50.0,
+          "BOND10Y": 0.0,
+          "EURUSD": 0.0
+        },
+        "Grupa J": {
+          "SPX": -70.0,
+          "XAUUSD": 30.0,
+          "BOND10Y": 0.0,
+          "EURUSD": 0.0
+        },
+        "Grupa K": {
+          "SPX": -50.0,
+          "XAUUSD": -50.0,
+          "BOND10Y": 0.0,
+          "EURUSD": 0.0
+        },
+        "Grupa L": {
+          "SPX": -50.0,
+          "XAUUSD": -50.0,
+          "BOND10Y": 0.0,
+          "EURUSD": 0.0
+        },
+        "Grupa M": {
+          "SPX": -40.0,
+          "XAUUSD": -40.0,
+          "BOND10Y": 0.0,
+          "EURUSD": 0.0
+        },
+        "Grupa N": {
+          "SPX": 100.0,
+          "XAUUSD": 0.0,
+          "BOND10Y": 0.0,
+          "EURUSD": 0.0
+        }
       }
     },
     {
       "label": "23.03 – 27.03",
-      "week_start": "2025-03-23",
+      "week_start": "2026-03-23",
       "completed": true,
       "prices": {
-        "open":  {"SPX": 6574.96, "XAUUSD": 4498.43, "BOND10Y": 4.392,  "EURUSD": 1.15583},
-        "close": {"SPX": 6368.85, "XAUUSD": 4494.04, "BOND10Y": 4.432,  "EURUSD": 1.15101}
+        "open": {
+          "SPX": 6574.96,
+          "XAUUSD": 4498.43,
+          "BOND10Y": 4.392,
+          "EURUSD": 1.15583
+        },
+        "close": {
+          "SPX": 6368.85,
+          "XAUUSD": 4494.04,
+          "BOND10Y": 4.432,
+          "EURUSD": 1.15101
+        }
       },
       "positions": {
-        "Grupa 1":  {"SPX":  52.65,  "XAUUSD":  50,     "BOND10Y": 0,     "EURUSD":   0},
-        "Grupa 2":  {"SPX": -40,     "XAUUSD":  20,     "BOND10Y": 20,    "EURUSD": -18.66},
-        "Grupa 3":  {"SPX": -20,     "XAUUSD":   0,     "BOND10Y": 52.54, "EURUSD": -30},
-        "Grupa 4":  {"SPX": -50,     "XAUUSD": -20,     "BOND10Y": 30,    "EURUSD":   0},
-        "Grupa 5":  {"SPX": -20,     "XAUUSD": -50,     "BOND10Y": 26.94, "EURUSD":   0},
-        "Grupa 6":  {"SPX":  32.87,  "XAUUSD":   0,     "BOND10Y": 32.87, "EURUSD": -32.87},
-        "Grupa 7":  {"SPX":  45,     "XAUUSD": -35,     "BOND10Y": 0,     "EURUSD":   0},
-        "Grupa 8":  {"SPX": -50,     "XAUUSD": -27.7,   "BOND10Y": 0,     "EURUSD":  20},
-        "Grupa 9":  {"SPX":  50,     "XAUUSD":   0,     "BOND10Y": 0,     "EURUSD":   0},
-        "Grupa 10": {"SPX": -33.78,  "XAUUSD":  -7.8,   "BOND10Y": 31.18, "EURUSD": -31.18},
-        "Grupa 11": {"SPX": -50,     "XAUUSD": -52.42,  "BOND10Y": 0,     "EURUSD":   0},
-        "Grupa 12": {"SPX":   0,     "XAUUSD":  57.65,  "BOND10Y": 0,     "EURUSD": -45},
-        "Grupa 13": {"SPX": 106.71,  "XAUUSD":   0,     "BOND10Y": 0,     "EURUSD":   0},
-        "Grupa 14": {"SPX":  90,     "XAUUSD":   0,     "BOND10Y": 0,     "EURUSD":   0},
-        "Grupa 15": {"SPX":   0,     "XAUUSD":   0,     "BOND10Y": 0,     "EURUSD":   0},
-        "Grupa A":  {"SPX": -30,     "XAUUSD":   0,     "BOND10Y": 15,    "EURUSD": -15},
-        "Grupa B":  {"SPX": -49.06,  "XAUUSD": -49.06,  "BOND10Y": 0,     "EURUSD":   0},
-        "Grupa C":  {"SPX": -52.3,   "XAUUSD":   0,     "BOND10Y": 0,     "EURUSD":  52.3},
-        "Grupa D":  {"SPX": -46.65,  "XAUUSD":  46,     "BOND10Y": 0,     "EURUSD":   0},
-        "Grupa E":  {"SPX": -70,     "XAUUSD":   0,     "BOND10Y": 0,     "EURUSD": -20},
-        "Grupa F":  {"SPX": -20,     "XAUUSD": -20,     "BOND10Y": 50,    "EURUSD":  10},
-        "Grupa G":  {"SPX": -50,     "XAUUSD": -50,     "BOND10Y": 0,     "EURUSD":   0},
-        "Grupa H":  {"SPX":  96.65,  "XAUUSD":   0,     "BOND10Y": 0,     "EURUSD":   0},
-        "Grupa I":  {"SPX":   0,     "XAUUSD":  95.97,  "BOND10Y": 0,     "EURUSD":   0},
-        "Grupa J":  {"SPX":  58.59,  "XAUUSD":  40,     "BOND10Y": 0,     "EURUSD":   0},
-        "Grupa K":  {"SPX": -40,     "XAUUSD": -60,     "BOND10Y": 0,     "EURUSD":   6.54},
-        "Grupa L":  {"SPX":   0,     "XAUUSD": -20,     "BOND10Y": 0,     "EURUSD":   0},
-        "Grupa M":  {"SPX": -50,     "XAUUSD": -50,     "BOND10Y": 0,     "EURUSD":   0},
-        "Grupa N":  {"SPX":  97.48,  "XAUUSD":   0,     "BOND10Y": 0,     "EURUSD":   0}
+        "Grupa 1": {
+          "SPX": 52.65,
+          "XAUUSD": 50.0,
+          "BOND10Y": 0.0,
+          "EURUSD": 0.0
+        },
+        "Grupa 2": {
+          "SPX": -40.0,
+          "XAUUSD": 20.0,
+          "BOND10Y": 20.0,
+          "EURUSD": -18.66
+        },
+        "Grupa 3": {
+          "SPX": -20.0,
+          "XAUUSD": 0.0,
+          "BOND10Y": 52.54,
+          "EURUSD": -30.0
+        },
+        "Grupa 4": {
+          "SPX": -50.0,
+          "XAUUSD": -20.0,
+          "BOND10Y": 30.0,
+          "EURUSD": 0.0
+        },
+        "Grupa 5": {
+          "SPX": -20.0,
+          "XAUUSD": -50.0,
+          "BOND10Y": 26.94,
+          "EURUSD": 0.0
+        },
+        "Grupa 6": {
+          "SPX": 32.87,
+          "XAUUSD": 0.0,
+          "BOND10Y": 32.87,
+          "EURUSD": -32.87
+        },
+        "Grupa 7": {
+          "SPX": 45.0,
+          "XAUUSD": -35.0,
+          "BOND10Y": 0.0,
+          "EURUSD": 0.0
+        },
+        "Grupa 8": {
+          "SPX": -50.0,
+          "XAUUSD": -27.7,
+          "BOND10Y": 0.0,
+          "EURUSD": 20.0
+        },
+        "Grupa 9": {
+          "SPX": 50.0,
+          "XAUUSD": 0.0,
+          "BOND10Y": 0.0,
+          "EURUSD": 0.0
+        },
+        "Grupa 10": {
+          "SPX": -33.78,
+          "XAUUSD": -7.8,
+          "BOND10Y": 31.18,
+          "EURUSD": -31.18
+        },
+        "Grupa 11": {
+          "SPX": -50.0,
+          "XAUUSD": -52.42,
+          "BOND10Y": 0.0,
+          "EURUSD": 0.0
+        },
+        "Grupa 12": {
+          "SPX": 0.0,
+          "XAUUSD": 57.65,
+          "BOND10Y": 0.0,
+          "EURUSD": -45.0
+        },
+        "Grupa 13": {
+          "SPX": 106.71,
+          "XAUUSD": 0.0,
+          "BOND10Y": 0.0,
+          "EURUSD": 0.0
+        },
+        "Grupa 14": {
+          "SPX": 90.0,
+          "XAUUSD": 0.0,
+          "BOND10Y": 0.0,
+          "EURUSD": 0.0
+        },
+        "Grupa 15": {
+          "SPX": 0.0,
+          "XAUUSD": 0.0,
+          "BOND10Y": 0.0,
+          "EURUSD": 0.0
+        },
+        "Grupa A": {
+          "SPX": -30.0,
+          "XAUUSD": 0.0,
+          "BOND10Y": 15.0,
+          "EURUSD": -15.0
+        },
+        "Grupa B": {
+          "SPX": -49.06,
+          "XAUUSD": -49.06,
+          "BOND10Y": 0.0,
+          "EURUSD": 0.0
+        },
+        "Grupa C": {
+          "SPX": -52.3,
+          "XAUUSD": 0.0,
+          "BOND10Y": 0.0,
+          "EURUSD": 52.3
+        },
+        "Grupa D": {
+          "SPX": -46.65,
+          "XAUUSD": 46.0,
+          "BOND10Y": 0.0,
+          "EURUSD": 0.0
+        },
+        "Grupa E": {
+          "SPX": -70.0,
+          "XAUUSD": 0.0,
+          "BOND10Y": 0.0,
+          "EURUSD": -20.0
+        },
+        "Grupa F": {
+          "SPX": -20.0,
+          "XAUUSD": -20.0,
+          "BOND10Y": 50.0,
+          "EURUSD": 10.0
+        },
+        "Grupa G": {
+          "SPX": -50.0,
+          "XAUUSD": -50.0,
+          "BOND10Y": 0.0,
+          "EURUSD": 0.0
+        },
+        "Grupa H": {
+          "SPX": 96.65,
+          "XAUUSD": 0.0,
+          "BOND10Y": 0.0,
+          "EURUSD": 0.0
+        },
+        "Grupa I": {
+          "SPX": 0.0,
+          "XAUUSD": 95.97,
+          "BOND10Y": 0.0,
+          "EURUSD": 0.0
+        },
+        "Grupa J": {
+          "SPX": 58.59,
+          "XAUUSD": 40.0,
+          "BOND10Y": 0.0,
+          "EURUSD": 0.0
+        },
+        "Grupa K": {
+          "SPX": -40.0,
+          "XAUUSD": -60.0,
+          "BOND10Y": 0.0,
+          "EURUSD": 6.54
+        },
+        "Grupa L": {
+          "SPX": 0.0,
+          "XAUUSD": -20.0,
+          "BOND10Y": 0.0,
+          "EURUSD": 0.0
+        },
+        "Grupa M": {
+          "SPX": -50.0,
+          "XAUUSD": -50.0,
+          "BOND10Y": 0.0,
+          "EURUSD": 0.0
+        },
+        "Grupa N": {
+          "SPX": 97.48,
+          "XAUUSD": 0.0,
+          "BOND10Y": 0.0,
+          "EURUSD": 0.0
+        }
+      }
+    },
+    {
+      "label": "30.03 – 02.04",
+      "week_start": "2026-03-30",
+      "completed": true,
+      "prices": {
+        "open": {
+          "SPX": 6403.37,
+          "XAUUSD": 4487.05,
+          "BOND10Y": 4.4,
+          "EURUSD": 1.15005
+        },
+        "close": {
+          "SPX": 6582.69,
+          "XAUUSD": 4676.3,
+          "BOND10Y": 4.309,
+          "EURUSD": 1.15421
+        }
+      },
+      "positions": {
+        "Grupa 1": {
+          "SPX": -20.0,
+          "XAUUSD": 40.0,
+          "BOND10Y": -10.0,
+          "EURUSD": 0.0
+        },
+        "Grupa 2": {
+          "SPX": -60.0,
+          "XAUUSD": -40.0,
+          "BOND10Y": 0.0,
+          "EURUSD": 0.0
+        },
+        "Grupa 3": {
+          "SPX": -25.0,
+          "XAUUSD": 0.0,
+          "BOND10Y": 45.0,
+          "EURUSD": -30.0
+        },
+        "Grupa 4": {
+          "SPX": -30.0,
+          "XAUUSD": 0.0,
+          "BOND10Y": 20.0,
+          "EURUSD": 0.0
+        },
+        "Grupa 5": {
+          "SPX": -47.86,
+          "XAUUSD": 20.0,
+          "BOND10Y": 30.0,
+          "EURUSD": 0.0
+        },
+        "Grupa 6": {
+          "SPX": 49.01,
+          "XAUUSD": 49.01,
+          "BOND10Y": 0.0,
+          "EURUSD": 0.0
+        },
+        "Grupa 7": {
+          "SPX": -60.0,
+          "XAUUSD": 0.0,
+          "BOND10Y": 20.0,
+          "EURUSD": -20.0
+        },
+        "Grupa 8": {
+          "SPX": -49.21,
+          "XAUUSD": -30.0,
+          "BOND10Y": 20.0,
+          "EURUSD": 0.0
+        },
+        "Grupa 9": {
+          "SPX": 50.01,
+          "XAUUSD": 49.0,
+          "BOND10Y": 0.0,
+          "EURUSD": 0.0
+        },
+        "Grupa 10": {
+          "SPX": 22.0,
+          "XAUUSD": 0.0,
+          "BOND10Y": 43.0,
+          "EURUSD": -37.0
+        },
+        "Grupa 11": {
+          "SPX": -50.0,
+          "XAUUSD": 0.0,
+          "BOND10Y": 29.04,
+          "EURUSD": -25.0
+        },
+        "Grupa 12": {
+          "SPX": -50.0,
+          "XAUUSD": 0.0,
+          "BOND10Y": 32.0,
+          "EURUSD": -20.79
+        },
+        "Grupa 13": {
+          "SPX": -15.51,
+          "XAUUSD": 20.67,
+          "BOND10Y": -31.01,
+          "EURUSD": -36.18
+        },
+        "Grupa 14": {
+          "SPX": 95.0,
+          "XAUUSD": 0.0,
+          "BOND10Y": 0.0,
+          "EURUSD": 0.0
+        },
+        "Grupa 15": {
+          "SPX": -25.95,
+          "XAUUSD": -30.0,
+          "BOND10Y": 0.0,
+          "EURUSD": 41.0
+        },
+        "Grupa A": {
+          "SPX": -44.5,
+          "XAUUSD": 0.0,
+          "BOND10Y": 30.0,
+          "EURUSD": -20.0
+        },
+        "Grupa B": {
+          "SPX": 50.0,
+          "XAUUSD": 49.71,
+          "BOND10Y": 0.0,
+          "EURUSD": 0.0
+        },
+        "Grupa C": {
+          "SPX": -53.0,
+          "XAUUSD": -53.0,
+          "BOND10Y": 0.0,
+          "EURUSD": 0.0
+        },
+        "Grupa D": {
+          "SPX": -47.04,
+          "XAUUSD": 47.03,
+          "BOND10Y": 0.0,
+          "EURUSD": 0.0
+        },
+        "Grupa E": {
+          "SPX": -50.0,
+          "XAUUSD": 0.0,
+          "BOND10Y": 0.0,
+          "EURUSD": 20.0
+        },
+        "Grupa F": {
+          "SPX": -35.0,
+          "XAUUSD": 0.0,
+          "BOND10Y": 40.0,
+          "EURUSD": -25.0
+        },
+        "Grupa G": {
+          "SPX": -68.16,
+          "XAUUSD": -40.0,
+          "BOND10Y": 0.0,
+          "EURUSD": 0.0
+        },
+        "Grupa H": {
+          "SPX": 60.0,
+          "XAUUSD": 0.0,
+          "BOND10Y": 0.0,
+          "EURUSD": 0.0
+        },
+        "Grupa I": {
+          "SPX": -95.88,
+          "XAUUSD": 0.0,
+          "BOND10Y": 0.0,
+          "EURUSD": 0.0
+        },
+        "Grupa J": {
+          "SPX": 0.0,
+          "XAUUSD": 65.0,
+          "BOND10Y": 0.0,
+          "EURUSD": -31.72
+        },
+        "Grupa K": {
+          "SPX": -40.0,
+          "XAUUSD": -7.83,
+          "BOND10Y": 60.0,
+          "EURUSD": 0.0
+        },
+        "Grupa L": {
+          "SPX": 0.0,
+          "XAUUSD": 20.0,
+          "BOND10Y": 0.0,
+          "EURUSD": -42.0
+        },
+        "Grupa M": {
+          "SPX": -106.85,
+          "XAUUSD": 0.0,
+          "BOND10Y": 0.0,
+          "EURUSD": 0.0
+        },
+        "Grupa N": {
+          "SPX": 94.43,
+          "XAUUSD": 0.0,
+          "BOND10Y": 0.0,
+          "EURUSD": 0.0
+        }
+      }
+    },
+    {
+      "label": "06.04 – 10.04",
+      "week_start": "2026-04-06",
+      "completed": true,
+      "prices": {
+        "open": {
+          "SPX": 6587.66,
+          "XAUUSD": 4632.83,
+          "BOND10Y": 4.361,
+          "EURUSD": 1.15212
+        },
+        "close": {
+          "SPX": 6816.89,
+          "XAUUSD": 4759.595,
+          "BOND10Y": 4.316,
+          "EURUSD": 1.17276
+        }
+      },
+      "positions": {
+        "Grupa 1": {
+          "SPX": -20.0,
+          "XAUUSD": 40.0,
+          "BOND10Y": -10.0,
+          "EURUSD": 0.0
+        },
+        "Grupa 2": {
+          "SPX": 48.0,
+          "XAUUSD": 48.0,
+          "BOND10Y": 0.0,
+          "EURUSD": 0.0
+        },
+        "Grupa 3": {
+          "SPX": 0.0,
+          "XAUUSD": 0.0,
+          "BOND10Y": 0.0,
+          "EURUSD": 0.0
+        },
+        "Grupa 4": {
+          "SPX": 25.0,
+          "XAUUSD": 30.0,
+          "BOND10Y": 0.0,
+          "EURUSD": 0.0
+        },
+        "Grupa 5": {
+          "SPX": 0.0,
+          "XAUUSD": 0.0,
+          "BOND10Y": 30.0,
+          "EURUSD": 0.0
+        },
+        "Grupa 6": {
+          "SPX": 0.0,
+          "XAUUSD": 40.0,
+          "BOND10Y": 0.0,
+          "EURUSD": 61.46
+        },
+        "Grupa 7": {
+          "SPX": -30.0,
+          "XAUUSD": -30.0,
+          "BOND10Y": 35.0,
+          "EURUSD": 0.0
+        },
+        "Grupa 8": {
+          "SPX": -96.16,
+          "XAUUSD": 0.0,
+          "BOND10Y": 0.0,
+          "EURUSD": 0.0
+        },
+        "Grupa 9": {
+          "SPX": 51.23,
+          "XAUUSD": 0.0,
+          "BOND10Y": -51.23,
+          "EURUSD": 0.0
+        },
+        "Grupa 10": {
+          "SPX": -20.0,
+          "XAUUSD": 0.0,
+          "BOND10Y": 0.0,
+          "EURUSD": 0.0
+        },
+        "Grupa 11": {
+          "SPX": 0.0,
+          "XAUUSD": 0.0,
+          "BOND10Y": 0.0,
+          "EURUSD": 0.0
+        },
+        "Grupa 12": {
+          "SPX": -50.0,
+          "XAUUSD": 50.0,
+          "BOND10Y": 0.0,
+          "EURUSD": 0.0
+        },
+        "Grupa 13": {
+          "SPX": 27.78,
+          "XAUUSD": 71.16,
+          "BOND10Y": -4.12,
+          "EURUSD": 9.5
+        },
+        "Grupa 14": {
+          "SPX": 0.0,
+          "XAUUSD": 0.0,
+          "BOND10Y": 0.0,
+          "EURUSD": 0.0
+        },
+        "Grupa 15": {
+          "SPX": 30.0,
+          "XAUUSD": 30.0,
+          "BOND10Y": 0.0,
+          "EURUSD": 30.0
+        },
+        "Grupa A": {
+          "SPX": 50.0,
+          "XAUUSD": 42.56,
+          "BOND10Y": 0.0,
+          "EURUSD": 0.0
+        },
+        "Grupa B": {
+          "SPX": 0.0,
+          "XAUUSD": 51.0,
+          "BOND10Y": 0.0,
+          "EURUSD": 52.21
+        },
+        "Grupa C": {
+          "SPX": 0.0,
+          "XAUUSD": 0.0,
+          "BOND10Y": 0.0,
+          "EURUSD": 0.0
+        },
+        "Grupa D": {
+          "SPX": -47.37,
+          "XAUUSD": 47.37,
+          "BOND10Y": 0.0,
+          "EURUSD": 0.0
+        },
+        "Grupa E": {
+          "SPX": -50.0,
+          "XAUUSD": 0.0,
+          "BOND10Y": 0.0,
+          "EURUSD": 20.0
+        },
+        "Grupa F": {
+          "SPX": -25.0,
+          "XAUUSD": 25.0,
+          "BOND10Y": 0.0,
+          "EURUSD": -20.0
+        },
+        "Grupa G": {
+          "SPX": 0.0,
+          "XAUUSD": 0.0,
+          "BOND10Y": 0.0,
+          "EURUSD": 0.0
+        },
+        "Grupa H": {
+          "SPX": -20.0,
+          "XAUUSD": 0.0,
+          "BOND10Y": 0.0,
+          "EURUSD": 0.0
+        },
+        "Grupa I": {
+          "SPX": 0.0,
+          "XAUUSD": 25.0,
+          "BOND10Y": 0.0,
+          "EURUSD": 25.0
+        },
+        "Grupa J": {
+          "SPX": -45.0,
+          "XAUUSD": -54.34,
+          "BOND10Y": 0.0,
+          "EURUSD": 0.0
+        },
+        "Grupa K": {
+          "SPX": 0.0,
+          "XAUUSD": 0.0,
+          "BOND10Y": 0.0,
+          "EURUSD": -20.0
+        },
+        "Grupa L": {
+          "SPX": 0.0,
+          "XAUUSD": 20.0,
+          "BOND10Y": 0.0,
+          "EURUSD": -42.0
+        },
+        "Grupa M": {
+          "SPX": 0.0,
+          "XAUUSD": 0.0,
+          "BOND10Y": 0.0,
+          "EURUSD": 0.0
+        },
+        "Grupa N": {
+          "SPX": 97.07,
+          "XAUUSD": 0.0,
+          "BOND10Y": 0.0,
+          "EURUSD": 0.0
+        }
+      }
+    },
+    {
+      "label": "13.04 – 17.04",
+      "week_start": "2026-04-13",
+      "completed": true,
+      "prices": {
+        "open": {
+          "SPX": 6806.47,
+          "XAUUSD": 4671.08,
+          "BOND10Y": 4.348,
+          "EURUSD": 1.16721
+        },
+        "close": {
+          "SPX": 7126.06,
+          "XAUUSD": 4854.675,
+          "BOND10Y": 4.25,
+          "EURUSD": 1.17691
+        }
+      },
+      "positions": {
+        "Grupa 1": {
+          "SPX": -20.0,
+          "XAUUSD": 40.0,
+          "BOND10Y": -10.0,
+          "EURUSD": 0.0
+        },
+        "Grupa 2": {
+          "SPX": 50.0,
+          "XAUUSD": 49.77,
+          "BOND10Y": 0.0,
+          "EURUSD": 0.0
+        },
+        "Grupa 3": {
+          "SPX": 0.0,
+          "XAUUSD": 0.0,
+          "BOND10Y": 0.0,
+          "EURUSD": 0.0
+        },
+        "Grupa 4": {
+          "SPX": -30.0,
+          "XAUUSD": 35.0,
+          "BOND10Y": 0.0,
+          "EURUSD": 0.0
+        },
+        "Grupa 5": {
+          "SPX": 46.43,
+          "XAUUSD": 0.0,
+          "BOND10Y": 30.0,
+          "EURUSD": 20.0
+        },
+        "Grupa 6": {
+          "SPX": -93.285,
+          "XAUUSD": 10.365,
+          "BOND10Y": 0.0,
+          "EURUSD": 0.0
+        },
+        "Grupa 7": {
+          "SPX": -40.0,
+          "XAUUSD": -30.0,
+          "BOND10Y": 0.0,
+          "EURUSD": -27.0
+        },
+        "Grupa 8": {
+          "SPX": 32.81,
+          "XAUUSD": -30.0,
+          "BOND10Y": 30.0,
+          "EURUSD": 0.0
+        },
+        "Grupa 9": {
+          "SPX": -29.78,
+          "XAUUSD": 75.0,
+          "BOND10Y": 0.0,
+          "EURUSD": 0.0
+        },
+        "Grupa 10": {
+          "SPX": -25.0,
+          "XAUUSD": 20.0,
+          "BOND10Y": -20.0,
+          "EURUSD": -22.0
+        },
+        "Grupa 11": {
+          "SPX": 61.95,
+          "XAUUSD": -40.0,
+          "BOND10Y": 0.0,
+          "EURUSD": 0.0
+        },
+        "Grupa 12": {
+          "SPX": -50.0,
+          "XAUUSD": -50.0,
+          "BOND10Y": 0.0,
+          "EURUSD": 0.0
+        },
+        "Grupa 13": {
+          "SPX": -26.86,
+          "XAUUSD": 53.72,
+          "BOND10Y": 0.0,
+          "EURUSD": 26.86
+        },
+        "Grupa 14": {
+          "SPX": 95.0,
+          "XAUUSD": 0.0,
+          "BOND10Y": 0.0,
+          "EURUSD": 0.0
+        },
+        "Grupa 15": {
+          "SPX": 40.0,
+          "XAUUSD": 25.0,
+          "BOND10Y": -32.51,
+          "EURUSD": 0.0
+        },
+        "Grupa A": {
+          "SPX": -35.0,
+          "XAUUSD": 20.0,
+          "BOND10Y": -20.0,
+          "EURUSD": 20.0
+        },
+        "Grupa B": {
+          "SPX": 55.0,
+          "XAUUSD": 0.0,
+          "BOND10Y": 0.0,
+          "EURUSD": 50.0
+        },
+        "Grupa C": {
+          "SPX": -75.0,
+          "XAUUSD": -27.0,
+          "BOND10Y": 0.0,
+          "EURUSD": 0.0
+        },
+        "Grupa D": {
+          "SPX": 47.39,
+          "XAUUSD": 47.0,
+          "BOND10Y": 0.0,
+          "EURUSD": 0.0
+        },
+        "Grupa E": {
+          "SPX": -50.0,
+          "XAUUSD": 0.0,
+          "BOND10Y": 0.0,
+          "EURUSD": 15.0
+        },
+        "Grupa F": {
+          "SPX": -20.0,
+          "XAUUSD": -20.0,
+          "BOND10Y": 0.0,
+          "EURUSD": 20.0
+        },
+        "Grupa G": {
+          "SPX": -22.0,
+          "XAUUSD": 60.0,
+          "BOND10Y": 0.0,
+          "EURUSD": -22.0
+        },
+        "Grupa H": {
+          "SPX": -50.0,
+          "XAUUSD": 44.61,
+          "BOND10Y": 0.0,
+          "EURUSD": 0.0
+        },
+        "Grupa I": {
+          "SPX": -94.33,
+          "XAUUSD": 0.0,
+          "BOND10Y": 0.0,
+          "EURUSD": 0.0
+        },
+        "Grupa J": {
+          "SPX": 35.0,
+          "XAUUSD": 35.0,
+          "BOND10Y": 0.0,
+          "EURUSD": -26.29
+        },
+        "Grupa K": {
+          "SPX": 39.78,
+          "XAUUSD": 65.0,
+          "BOND10Y": 0.0,
+          "EURUSD": 0.0
+        },
+        "Grupa L": {
+          "SPX": 0.0,
+          "XAUUSD": 20.0,
+          "BOND10Y": 0.0,
+          "EURUSD": -42.0
+        },
+        "Grupa M": {
+          "SPX": 20.0,
+          "XAUUSD": 0.0,
+          "BOND10Y": 0.0,
+          "EURUSD": 50.0
+        },
+        "Grupa N": {
+          "SPX": 97.07,
+          "XAUUSD": 0.0,
+          "BOND10Y": 0.0,
+          "EURUSD": 0.0
+        }
       }
     }
   ],
   "pending_week": {
-    "label": "30.03 – 03.04",
-    "week_start": "2025-03-30",
+    "label": "Następny tydzień",
     "waiting_for_positions": true
   }
 }
