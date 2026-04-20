@@ -308,6 +308,33 @@ def week_is_provisional(sources: dict) -> bool:
     return False
 
 
+@st.cache_data(ttl=900, show_spinner=False)
+def fetch_week_hourly_prices(week_start_iso: str):
+    """Return {inst: pd.Series[Close indexed by hourly timestamp]} for the week.
+    Empty dict if yfinance unavailable or all fetches failed.
+    """
+    if not HAS_YF or not week_start_iso:
+        return {}
+    from datetime import datetime as _dt, timedelta as _td
+    ws = _dt.strptime(week_start_iso, "%Y-%m-%d")
+    end = ws + _td(days=7)
+    out = {}
+    for inst, ticker in YF_TICKERS.items():
+        try:
+            df = yf.download(ticker,
+                             start=ws.strftime("%Y-%m-%d"),
+                             end=end.strftime("%Y-%m-%d"),
+                             interval="1h", auto_adjust=True, progress=False)
+            if df is None or df.empty:
+                continue
+            if isinstance(df.columns, pd.MultiIndex):
+                df.columns = [c[0] for c in df.columns]
+            out[inst] = df["Close"].dropna()
+        except Exception:
+            continue
+    return out
+
+
 def price_changes(prices: dict) -> dict:
     op = prices.get("open") or {}
     cl = prices.get("close") or {}
@@ -340,6 +367,118 @@ def portfolio_value(start: float, positions: dict, changes: dict) -> float:
 def benchmark_value(start: float, changes: dict) -> float:
     avg = sum((changes.get(i) or 0) for i in INSTRUMENTS) / 4
     return start * (1 + avg)
+
+
+def build_hourly_history(data: dict):
+    """Hourly equity curve dla wszystkich grup.
+
+    Zwraca (timestamps, hist, bench):
+      timestamps: list datetime
+      hist:       {group: [floats]}
+      bench:      [floats]
+
+    Używa 1h Close per instrument z yfinance, forward-fill kiedy któryś rynek
+    zamknięty. Skaluje wewnątrztygodniową trajektorię żeby końcówka zgadzała
+    się z canonical_values (jeśli istnieją).
+    """
+    groups   = list(data.get("groups", {}).keys())
+    out_ts   = []
+    out_hist = {g: [] for g in groups}
+    out_bench = []
+
+    state = {g: 100.0 for g in groups}
+    bench_state = 100.0
+
+    for week in data.get("weeks", []):
+        completed = week.get("completed")
+        eff, _ = effective_prices(week)
+        opens = {i: eff["open"].get(i) for i in INSTRUMENTS}
+        if any(v is None for v in opens.values()):
+            continue
+        positions = week.get("positions") or {}
+        canonical = week.get("canonical_values") or {}
+        ws_iso    = week.get("week_start")
+
+        hourly = fetch_week_hourly_prices(ws_iso)
+        # union timestamps from all instruments
+        all_ts = sorted(set().union(
+            *[set(s.index) for s in hourly.values() if s is not None and not s.empty]
+        )) if hourly else []
+
+        if not all_ts:
+            # brak danych godzinowych — jeden punkt końca tygodnia jeśli completed
+            if not completed:
+                continue
+            closes = {i: eff["close"].get(i) for i in INSTRUMENTS}
+            if any(v is None for v in closes.values()):
+                continue
+            chg = price_changes(eff)
+            new_state = {}
+            for g in groups:
+                pos = positions.get(g) or {}
+                computed = portfolio_value(state[g], pos, chg)
+                new_state[g] = float(canonical[g]) if g in canonical else computed
+            new_bench = benchmark_value(bench_state, chg)
+            import datetime as _dt2
+            ts_end = _dt2.datetime.strptime(ws_iso, "%Y-%m-%d") + _dt2.timedelta(days=4, hours=22)
+            out_ts.append(ts_end)
+            for g in groups:
+                out_hist[g].append(new_state[g])
+            out_bench.append(new_bench)
+            state = new_state
+            bench_state = new_bench
+            continue
+
+        start_state = dict(state)
+        start_bench = bench_state
+
+        last_prices = dict(opens)
+        week_points = []  # (ts, {g: val}, bench)
+
+        for ts in all_ts:
+            for inst in INSTRUMENTS:
+                s = hourly.get(inst)
+                if s is not None and ts in s.index:
+                    v = s.loc[ts]
+                    try:
+                        if pd.notna(v):
+                            last_prices[inst] = float(v)
+                    except Exception:
+                        pass
+            chg = {i: (last_prices[i] / opens[i] - 1) for i in INSTRUMENTS}
+            snap = {}
+            for g in groups:
+                pos = positions.get(g) or {}
+                snap[g] = portfolio_value(start_state[g], pos, chg)
+            week_points.append((ts, snap, benchmark_value(start_bench, chg)))
+
+        # skalowanie do canonical (gładkie przejście)
+        if completed and canonical and week_points:
+            last_snap = week_points[-1][1]
+            for g in groups:
+                if g not in canonical:
+                    continue
+                target    = float(canonical[g])
+                start_val = start_state[g]
+                last_val  = last_snap[g]
+                if abs(last_val - start_val) > 1e-9:
+                    scale = (target - start_val) / (last_val - start_val)
+                    for pt in week_points:
+                        pt[1][g] = start_val + (pt[1][g] - start_val) * scale
+
+        for (ts, snap, bench_snap) in week_points:
+            out_ts.append(ts)
+            for g in groups:
+                out_hist[g].append(snap[g])
+            out_bench.append(bench_snap)
+
+        # stan na koniec tygodnia
+        if week_points:
+            last = week_points[-1]
+            state = dict(last[1])
+            bench_state = last[2]
+
+    return out_ts, out_hist, out_bench
 
 
 def build_history(data: dict):
@@ -376,7 +515,8 @@ def build_history(data: dict):
     return hist, bench, labels, provisional_flags
 
 def build_equity_chart(hist, bench, labels, groups_meta,
-                       year_filter="Wszystkie", extra_groups=None, top_n=5):
+                       year_filter="Wszystkie", extra_groups=None, top_n=5,
+                       hourly=False):
     """Czystszy wykres equity.
 
     Domyślnie:
@@ -446,19 +586,20 @@ def build_equity_chart(hist, bench, labels, groups_meta,
     ))
 
     # benchmark + średnia zawsze widoczne
+    mode_main = "lines" if hourly else "lines+markers"
     avg_vals = [sum(v[i] for v in hist.values()) / len(hist) for i in range(n_points)]
     fig.add_trace(go.Scatter(
         x=labels, y=avg_vals, name="⌀ średnia",
-        mode="lines+markers",
+        mode=mode_main,
         line=dict(color="#4A9EFF", width=2.5, dash="dot"),
-        marker=dict(size=7, symbol="diamond"),
+        marker=dict(size=7, symbol="diamond") if not hourly else None,
         hovertemplate="<b>średnia</b><br>%{x}: %{y:.3f}<extra></extra>",
     ))
     fig.add_trace(go.Scatter(
         x=labels, y=bench, name="benchmark 4×25%",
-        mode="lines+markers",
+        mode=mode_main,
         line=dict(color="#FF6B35", width=2.5, dash="dash"),
-        marker=dict(size=7, symbol="square"),
+        marker=dict(size=7, symbol="square") if not hourly else None,
         hovertemplate="<b>benchmark</b><br>%{x}: %{y:.3f}<extra></extra>",
     ))
 
@@ -471,14 +612,15 @@ def build_equity_chart(hist, bench, labels, groups_meta,
         if idx < 3:
             color = top_colors_medal[idx]
             name  = f"{MEDALS[idx]} {g}"
-            width = 3
+            width = 3 if not hourly else 2.2
         else:
             color = extra_palette[(idx - 3) % len(extra_palette)]
             name  = f"#{idx+1} {g}"
-            width = 2
+            width = 2 if not hourly else 1.6
         fig.add_trace(go.Scatter(
-            x=labels, y=hist[g], name=name, mode="lines+markers",
-            line=dict(color=color, width=width), marker=dict(size=7),
+            x=labels, y=hist[g], name=name, mode=mode_main,
+            line=dict(color=color, width=width),
+            marker=dict(size=7) if not hourly else None,
             hovertemplate=f"<b>{name}</b> (Rok {yr})<br>%{{x}}: %{{y:.3f}}<extra></extra>",
         ))
 
@@ -491,9 +633,10 @@ def build_equity_chart(hist, bench, labels, groups_meta,
             continue
         yr = groups_meta.get(g, {}).get("year", "")
         fig.add_trace(go.Scatter(
-            x=labels, y=hist[g], name=f"★ {g}", mode="lines+markers",
-            line=dict(color=highlight_palette[i % len(highlight_palette)], width=2.5),
-            marker=dict(size=7, symbol="star"),
+            x=labels, y=hist[g], name=f"★ {g}", mode=mode_main,
+            line=dict(color=highlight_palette[i % len(highlight_palette)],
+                      width=2.5 if not hourly else 1.8),
+            marker=dict(size=7, symbol="star") if not hourly else None,
             hovertemplate=f"<b>★ {g}</b> (Rok {yr})<br>%{{x}}: %{{y:.3f}}<extra></extra>",
         ))
 
@@ -1241,13 +1384,19 @@ def main():
 
     with tab_chart:
         if n_done >= 1:
-            fc1, fc2 = st.columns([1, 3])
+            fc1, fc2, fc3 = st.columns([1, 1, 2])
             with fc1:
+                granularity = st.radio(
+                    "Ziarnistość", ["Tygodniowo", "Godzinowo"],
+                    horizontal=True, key="chart_gran",
+                    help="Godzinowo = wykres pulsuje intraweek z cen yfinance",
+                )
+            with fc2:
                 year_filter = st.radio(
                     "Rok", ["Wszystkie", "Rok 1", "Rok 2"],
                     horizontal=True, key="chart_year",
                 )
-            with fc2:
+            with fc3:
                 all_groups = sorted(
                     groups_meta.keys(),
                     key=lambda g: (groups_meta[g].get("year", 0),
@@ -1258,11 +1407,29 @@ def main():
                     options=all_groups, default=[], key="chart_extra",
                 )
 
-            st.plotly_chart(
-                build_equity_chart(hist, bench, labels, groups_meta,
-                                   year_filter=year_filter, extra_groups=extra),
-                use_container_width=True,
-            )
+            if granularity == "Godzinowo":
+                with st.spinner("Pobieram dane godzinowe z yfinance..."):
+                    ts_h, hist_h, bench_h = build_hourly_history(data)
+                if ts_h:
+                    st.plotly_chart(
+                        build_equity_chart(hist_h, bench_h, ts_h, groups_meta,
+                                           year_filter=year_filter,
+                                           extra_groups=extra, hourly=True),
+                        use_container_width=True,
+                    )
+                else:
+                    st.info("Brak danych godzinowych z yfinance — pokazuję tygodniowo.")
+                    st.plotly_chart(
+                        build_equity_chart(hist, bench, labels, groups_meta,
+                                           year_filter=year_filter, extra_groups=extra),
+                        use_container_width=True,
+                    )
+            else:
+                st.plotly_chart(
+                    build_equity_chart(hist, bench, labels, groups_meta,
+                                       year_filter=year_filter, extra_groups=extra),
+                    use_container_width=True,
+                )
 
             st.subheader("Łączna zmiana instrumentów od startu")
             cum = {inst: 1.0 for inst in INSTRUMENTS}
