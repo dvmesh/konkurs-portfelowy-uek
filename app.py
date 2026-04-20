@@ -755,40 +755,48 @@ def admin_panel(data, sha):
 
 
 def _admin_open_week(data, sha):
+    from datetime import timedelta, date
     st.subheader("Otwórz nowy tydzień")
     open_wks = [w for w in data.get("weeks", []) if not w.get("completed")]
     if open_wks:
         st.info(f"Tydzień **{open_wks[-1]['label']}** już otwarty. Zamknij najpierw.")
         return
 
+    # sugerowana data: dzisiejszy poniedziałek lub najbliższy
+    today = date.today()
+    default_monday = today + timedelta(days=(7 - today.weekday()) % 7)
+
     with st.form("form_open_week"):
-        c1, c2 = st.columns(2)
+        c1, c2 = st.columns([1, 2])
         with c1:
-            label  = st.text_input("Etykieta", placeholder="30.03 – 03.04")
+            wstart = st.date_input("Poniedziałek", value=default_monday)
         with c2:
-            wstart = st.date_input("Data otwarcia (poniedziałek)")
+            wend_default = wstart + timedelta(days=4)
+            auto_label = f"{wstart.strftime('%d.%m')} – {wend_default.strftime('%d.%m')}"
+            label = st.text_input("Etykieta", value=auto_label)
 
         auto_yf = st.checkbox(
-            "📡 Pobierz ceny otwarcia automatycznie z yfinance "
-            "(pole manualne pominięte, oficjalne można wpisać później)",
-            value=False,
+            "📡 Użyj yfinance dla cen otwarcia "
+            "(oficjalne ze stooq można wpisać później w zakładce Uzupełnij ceny)",
+            value=True,
         )
-        st.markdown("**Ceny otwarcia** (stooq.pl – niedzielne 23:00 / poniedziałek)")
-        st.caption("Zostaw 0 żeby użyć yfinance dla danego instrumentu.")
-        cols  = st.columns(4)
-        opens = {}
-        for i, inst in enumerate(INSTRUMENTS):
-            with cols[i]:
-                opens[inst] = st.number_input(INST_SHORT[inst],
-                                              min_value=0.0, value=0.0,
-                                              format="%.5f", key=f"o_{inst}")
-        mark_waiting = st.checkbox("Czekam na pozycje od prowadzącego", value=True)
 
-        if st.form_submit_button("Otwórz tydzień ➜"):
+        if not auto_yf:
+            st.markdown("**Ceny otwarcia ze stooq.pl**")
+            cols  = st.columns(4)
+            opens = {}
+            for i, inst in enumerate(INSTRUMENTS):
+                with cols[i]:
+                    opens[inst] = st.number_input(INST_SHORT[inst],
+                                                  min_value=0.0, value=0.0,
+                                                  format="%.5f", key=f"o_{inst}")
+        else:
+            opens = {i: 0.0 for i in INSTRUMENTS}
+
+        if st.form_submit_button("Otwórz tydzień ➜", type="primary"):
             if not label:
                 st.error("Podaj etykietę.")
                 return
-            # if auto_yf lub value=0 → zapisz None (fallback do yfinance)
             final_opens = {
                 inst: (opens[inst] if (not auto_yf and opens[inst] > 0) else None)
                 for inst in INSTRUMENTS
@@ -801,7 +809,7 @@ def _admin_open_week(data, sha):
             ))
             data["pending_week"] = dict(
                 label=label, week_start=wstart.strftime("%Y-%m-%d"),
-                waiting_for_positions=mark_waiting,
+                waiting_for_positions=True,
             )
             ok, msg = save_data(data, sha)
             st.success(msg) if ok else st.error(msg)
@@ -819,44 +827,74 @@ def _admin_positions(data, sha):
     week        = open_wks[-1]
     groups_meta = data.get("groups", {})
     existing    = dict(week.get("positions") or {})
-    st.markdown(f"Tydzień: **{week['label']}**")
+    st.markdown(f"Tydzień: **{week['label']}** &nbsp; · &nbsp; "
+                "**Sprawdź, edytuj dowolną komórkę, zapisz.**",
+                unsafe_allow_html=True)
 
-    year_filter = st.radio("Pokaż:", ["Wszystkie", "Rok 1", "Rok 2"], horizontal=True)
+    # zbuduj tabelę
+    rows = []
+    for g in GROUP_ORDER:
+        if g not in groups_meta:
+            continue
+        meta = groups_meta[g]
+        prev = existing.get(g) or {}
+        alloc = sum(abs(prev.get(i) or 0) for i in INSTRUMENTS)
+        rows.append({
+            "Grupa":   g,
+            "Rok":     meta.get("year", 1),
+            "Skład":   ", ".join(meta.get("members", [])),
+            "SPX":     float(prev.get("SPX") or 0),
+            "Złoto":   float(prev.get("XAUUSD") or 0),
+            "Bond":    float(prev.get("BOND10Y") or 0),
+            "EUR/USD": float(prev.get("EURUSD") or 0),
+            "|alok.|": alloc,
+        })
+    df = pd.DataFrame(rows)
 
-    with st.form("form_positions"):
+    edited = st.data_editor(
+        df,
+        use_container_width=True,
+        hide_index=True,
+        num_rows="fixed",
+        disabled=["Grupa", "Rok", "Skład", "|alok.|"],
+        column_config={
+            "Grupa":   st.column_config.TextColumn("Grupa",   width=90),
+            "Rok":     st.column_config.NumberColumn("Rok",   width=60, format="%d"),
+            "Skład":   st.column_config.TextColumn("Skład",   width=280),
+            "SPX":     st.column_config.NumberColumn("SPX",   format="%.2f"),
+            "Złoto":   st.column_config.NumberColumn("Złoto", format="%.2f"),
+            "Bond":    st.column_config.NumberColumn("Bond",  format="%.2f"),
+            "EUR/USD": st.column_config.NumberColumn("EUR/USD", format="%.2f"),
+            "|alok.|": st.column_config.NumberColumn("|alok.|", format="%.2f",
+                                                    help="Suma wartości bezwzględnych "
+                                                         "pozycji (widać przy zapisie)."),
+        },
+        key="pos_editor",
+    )
+
+    over = edited[edited.apply(
+        lambda r: abs(r["SPX"]) + abs(r["Złoto"]) + abs(r["Bond"]) + abs(r["EUR/USD"]) > 100.01,
+        axis=1,
+    )]
+    if not over.empty:
+        st.warning("⚠️ Grupy z alokacją > 100: " + ", ".join(over["Grupa"].tolist()))
+
+    if st.button("💾 Zapisz pozycje", type="primary"):
         new_pos = dict(existing)
-        for g in GROUP_ORDER:
-            if g not in groups_meta:
-                continue
-            meta = groups_meta[g]
-            yr   = meta.get("year", 1)
-            if year_filter == "Rok 1" and yr != 1:
-                continue
-            if year_filter == "Rok 2" and yr != 2:
-                continue
-            members_str = ", ".join(meta.get("members", []))
-            with st.expander(f"**{g}** (Rok {yr}) — {members_str}"):
-                prev = (existing.get(g) or {})
-                cols = st.columns(4)
-                gpos = {}
-                for i, inst in enumerate(INSTRUMENTS):
-                    with cols[i]:
-                        gpos[inst] = st.number_input(
-                            INST_SHORT[inst],
-                            value=float(prev.get(inst) or 0),
-                            step=0.01, format="%.2f",
-                            key=f"p_{g}_{inst}",
-                        )
-                new_pos[g] = gpos
-
-        if st.form_submit_button("Zapisz pozycje"):
-            week["positions"] = new_pos
-            if "pending_week" in data:
-                data["pending_week"]["waiting_for_positions"] = False
-            ok, msg = save_data(data, sha)
-            st.success(msg) if ok else st.error(msg)
-            if ok:
-                st.rerun()
+        for _, r in edited.iterrows():
+            new_pos[r["Grupa"]] = {
+                "SPX":     float(r["SPX"]),
+                "XAUUSD":  float(r["Złoto"]),
+                "BOND10Y": float(r["Bond"]),
+                "EURUSD":  float(r["EUR/USD"]),
+            }
+        week["positions"] = new_pos
+        if "pending_week" in data:
+            data["pending_week"]["waiting_for_positions"] = False
+        ok, msg = save_data(data, sha)
+        st.success(msg) if ok else st.error(msg)
+        if ok:
+            st.rerun()
 
 
 def _admin_update_prices(data, sha):
@@ -934,26 +972,27 @@ def _admin_close_week(data, sha):
 
     week  = open_wks[-1]
     opens = (week.get("prices") or {}).get("open") or {}
-    st.markdown(f"Zamykasz: **{week['label']}**")
+    st.markdown(f"Zamykasz: **{week['label']}** &nbsp; "
+                "<span style='color:#8b949e'>Puste pole = szacunek z yfinance</span>",
+                unsafe_allow_html=True)
 
     live = fetch_live_prices() if HAS_YF else {}
 
     with st.form("form_close_week"):
-        st.markdown("**Ceny zamknięcia (piątek wieczór – stooq.pl)**")
-        st.caption("Zostaw 0 żeby użyć yfinance dla danego instrumentu (tryb szacunku finalnego).")
         cols   = st.columns(4)
         closes = {}
         for i, inst in enumerate(INSTRUMENTS):
             with cols[i]:
-                hint = ""
-                if live.get(inst):
-                    hint = f"  · live yf: **{live[inst]:.5g}**"
-                closes[inst] = st.number_input(
-                    f"{INST_SHORT[inst]}  *(open: {opens.get(inst, '?')})*{hint}",
-                    min_value=0.0, value=0.0,
-                    format="%.5f", key=f"c_{inst}",
+                st.markdown(f"**{INST_SHORT[inst]}**")
+                st.caption(
+                    f"open: {opens.get(inst) or '—'}"
+                    + (f"  ·  yf live: {live[inst]:.5g}" if live.get(inst) else "")
                 )
-        if st.form_submit_button("🏁 Zamknij i oblicz wyniki"):
+                closes[inst] = st.number_input(
+                    "close", min_value=0.0, value=0.0,
+                    format="%.5f", key=f"c_{inst}", label_visibility="collapsed",
+                )
+        if st.form_submit_button("🏁 Zamknij i oblicz wyniki", type="primary"):
             final_closes = {
                 inst: (closes[inst] if closes[inst] > 0 else None)
                 for inst in INSTRUMENTS
@@ -983,7 +1022,13 @@ def main():
     open_wks            = [w for w in data.get("weeks", []) if not w.get("completed")]
 
     active_week  = open_wks[-1] if open_wks else None
-    week_opens   = (active_week.get("prices") or {}).get("open") or {} if active_week else {}
+    if active_week:
+        eff_act, src_act = effective_prices(active_week)
+        week_opens       = {i: v for i, v in eff_act["open"].items() if v}
+        active_opens_src = src_act["open"]
+    else:
+        week_opens       = {}
+        active_opens_src = {}
     open_wk_pos  = active_week.get("positions") or {} if active_week else {}
     week_is_live = bool(active_week and week_opens and open_wk_pos and HAS_YF)
 
@@ -1058,12 +1103,23 @@ def main():
             unsafe_allow_html=True,
         )
 
-    tab_chart, tab_rank, tab_pos, tab_admin = st.tabs([
-        "Historia & rynek live",
-        "Ranking",
-        "Pozycje",
-        "Admin",
+    tab_rank, tab_chart, tab_live, tab_pos, tab_admin = st.tabs([
+        "🏆 Ranking",
+        "📈 Wykres",
+        "🕯️ Rynek live",
+        "📋 Pozycje",
+        "⚙️ Admin",
     ])
+
+    with tab_rank:
+        if n_done >= 1:
+            live_ranking_fragment(
+                hist, bench, groups_meta,
+                open_wk_pos if week_is_live else None,
+                week_opens  if week_is_live else None,
+            )
+        else:
+            st.info("Ranking pojawi się po rozliczeniu pierwszego tygodnia.")
 
     with tab_chart:
         if n_done >= 1:
@@ -1085,19 +1141,6 @@ def main():
             for i, inst in enumerate(INSTRUMENTS):
                 with ic[i]:
                     st.metric(INST_SHORT[inst], f"{(cum[inst]-1)*100:+.2f}%")
-
-            # ── Candlestick charts (hourly, live) ─────────────────────
-            if HAS_YF and week_opens:
-                st.markdown("---")
-                st.markdown(
-                    "##### 🕯️ Rynek live — świece godzinowe (ostatnie 7 dni)  "
-                    "&nbsp;&nbsp; otwarcie tygodnia &nbsp; kurs live &nbsp; — &nbsp;"
-                    "**odśw. co 5 min**"
-                )
-                candlestick_fragment(week_opens)
-            elif HAS_YF:
-                st.markdown("---")
-                st.info("Wykresy świecowe pojawią się gdy tydzień jest otwarty z cenami otwarcia.")
 
             with st.expander("Tabela cen tygodniowych"):
                 price_rows = []
@@ -1131,15 +1174,25 @@ def main():
         else:
             st.info("Wykres pojawi się po rozliczeniu pierwszego tygodnia.")
 
-    with tab_rank:
-        if n_done >= 1:
-            live_ranking_fragment(
-                hist, bench, groups_meta,
-                open_wk_pos if week_is_live else None,
-                week_opens  if week_is_live else None,
-            )
+    with tab_live:
+        if not HAS_YF:
+            st.warning("Zainstaluj `yfinance` aby zobaczyć rynek live.")
+        elif not active_week:
+            st.info("Brak aktywnego tygodnia — świece pojawią się po jego otwarciu.")
         else:
-            st.info("Ranking pojawi się po rozliczeniu pierwszego tygodnia.")
+            yf_used = [INST_SHORT[i] for i, s in active_opens_src.items() if s == "yfinance"]
+            hint = (
+                f"Otwarcia pobrane z yfinance: **{', '.join(yf_used)}**. "
+                "Prowadzący może później wpisać oficjalne ze stooq."
+                if yf_used else
+                "Wszystkie otwarcia oficjalne (stooq.pl)."
+            )
+            st.caption(
+                "Świece godzinowe, ostatnie 7 dni. Niebieska linia — otwarcie tygodnia. "
+                "Zielona/czerwona — kurs live. Odśwież co 5 min."
+            )
+            st.caption(hint)
+            candlestick_fragment(week_opens)
 
     with tab_pos:
         show_positions_tab(data, hist)
