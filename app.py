@@ -1103,9 +1103,9 @@ def main():
             unsafe_allow_html=True,
         )
 
-    tab_rank, tab_chart, tab_live, tab_pos, tab_admin = st.tabs([
-        "🏆 Ranking",
+    tab_chart, tab_rank, tab_live, tab_pos, tab_admin = st.tabs([
         "📈 Wykres",
+        "🏆 Ranking",
         "🕯️ Rynek live",
         "📋 Pozycje",
         "⚙️ Admin",
@@ -1177,22 +1177,46 @@ def main():
     with tab_live:
         if not HAS_YF:
             st.warning("Zainstaluj `yfinance` aby zobaczyć rynek live.")
-        elif not active_week:
-            st.info("Brak aktywnego tygodnia — świece pojawią się po jego otwarciu.")
         else:
-            yf_used = [INST_SHORT[i] for i, s in active_opens_src.items() if s == "yfinance"]
-            hint = (
-                f"Otwarcia pobrane z yfinance: **{', '.join(yf_used)}**. "
-                "Prowadzący może później wpisać oficjalne ze stooq."
-                if yf_used else
-                "Wszystkie otwarcia oficjalne (stooq.pl)."
-            )
+            if active_week:
+                live_opens = week_opens
+                opens_src  = active_opens_src
+                banner     = None
+            else:
+                # brak aktywnego tygodnia od prowadzącego — podstaw bieżący pn–pt z yfinance
+                from datetime import date, timedelta
+                today  = date.today()
+                monday = today - timedelta(days=today.weekday())
+                fake_week = {
+                    "week_start": monday.strftime("%Y-%m-%d"),
+                    "prices":     {"open": {}, "close": {}},
+                }
+                eff_f, src_f = effective_prices(fake_week)
+                live_opens   = {i: v for i, v in eff_f["open"].items() if v}
+                opens_src    = src_f["open"]
+                banner       = (
+                    f"Brak otwartego tygodnia od prowadzącego — pokazuję bieżący "
+                    f"({monday.strftime('%d.%m')}–{(monday + timedelta(days=4)).strftime('%d.%m')}) "
+                    f"z yfinance."
+                )
+
+            if banner:
+                st.info(banner)
+
+            yf_used = [INST_SHORT[i] for i, s in opens_src.items() if s == "yfinance"]
+            if yf_used and not banner:
+                st.caption(
+                    f"Otwarcia pobrane z yfinance: **{', '.join(yf_used)}**. "
+                    "Prowadzący może później wpisać oficjalne ze stooq."
+                )
+            elif not yf_used:
+                st.caption("Wszystkie otwarcia oficjalne (stooq.pl).")
+
             st.caption(
                 "Świece godzinowe, ostatnie 7 dni. Niebieska linia — otwarcie tygodnia. "
                 "Zielona/czerwona — kurs live. Odśwież co 5 min."
             )
-            st.caption(hint)
-            candlestick_fragment(week_opens)
+            candlestick_fragment(live_opens)
 
     with tab_pos:
         show_positions_tab(data, hist)
