@@ -18,28 +18,42 @@ st.set_page_config(
     initial_sidebar_state="collapsed",
 )
 
-st.markdown("""
-<style>
-[data-testid="stAppViewContainer"] { background: #0d1117; }
-[data-testid="stHeader"]           { background: transparent; }
-section[data-testid="stSidebar"]   { background: #161b22; }
+if "theme" not in st.session_state:
+    st.session_state.theme = "dark"
 
-[data-testid="stMetric"] {
-    background: #161b22;
-    border: 1px solid #30363d;
+_IS_LIGHT = st.session_state.theme == "light"
+
+_PALETTE = {
+    "bg":        "#ffffff" if _IS_LIGHT else "#0d1117",
+    "panel":     "#f6f8fa" if _IS_LIGHT else "#161b22",
+    "border":    "#d0d7de" if _IS_LIGHT else "#30363d",
+    "text":      "#1f2328" if _IS_LIGHT else "#e6edf3",
+    "muted":     "#656d76" if _IS_LIGHT else "#8b949e",
+    "pending_bg":"#fff8c5" if _IS_LIGHT else "#1c1600",
+}
+
+st.markdown(f"""
+<style>
+[data-testid="stAppViewContainer"] {{ background: {_PALETTE['bg']}; color: {_PALETTE['text']}; }}
+[data-testid="stHeader"]           {{ background: transparent; }}
+section[data-testid="stSidebar"]   {{ background: {_PALETTE['panel']}; }}
+
+[data-testid="stMetric"] {{
+    background: {_PALETTE['panel']};
+    border: 1px solid {_PALETTE['border']};
     border-radius: 10px;
     padding: 0.6rem 1rem 0.4rem;
-}
-[data-testid="stMetricValue"] { font-size: 1.4rem; }
+}}
+[data-testid="stMetricValue"] {{ font-size: 1.4rem; color: {_PALETTE['text']}; }}
 
-.pending-box {
-    background: #1c1600;
+.pending-box {{
+    background: {_PALETTE['pending_bg']};
     border: 1px solid #d29922;
     border-radius: 8px;
     padding: 1rem 1.4rem;
     margin-bottom: 1rem;
-}
-.live-badge {
+}}
+.live-badge {{
     display: inline-block;
     background: #1a2e1a;
     border: 1px solid #3fb950;
@@ -52,25 +66,44 @@ section[data-testid="stSidebar"]   { background: #161b22; }
     vertical-align: middle;
     margin-left: 8px;
     animation: pulse 2s infinite;
-}
-@keyframes pulse {
-    0%,100% { opacity:1; }
-    50%      { opacity:0.5; }
-}
-.ticker-card {
-    background: #161b22;
-    border: 1px solid #30363d;
+}}
+@keyframes pulse {{
+    0%,100% {{ opacity:1; }}
+    50%     {{ opacity:0.5; }}
+}}
+.ticker-card {{
+    background: {_PALETTE['panel']};
+    border: 1px solid {_PALETTE['border']};
     border-radius: 10px;
     padding: 0.7rem 1rem;
     text-align: center;
-}
-.ticker-name  { color: #8b949e; font-size: 0.78rem; font-weight:600; letter-spacing:.05em; }
-.ticker-price { color: #e6edf3; font-size: 1.3rem; font-weight: 700; margin: 2px 0; }
-.ticker-green { color: #3fb950; font-size: 0.88rem; font-weight: 600; }
-.ticker-red   { color: #f85149; font-size: 0.88rem; font-weight: 600; }
-.ticker-gray  { color: #8b949e; font-size: 0.88rem; }
-thead tr th { background: #161b22 !important; }
-.stTabs [data-baseweb="tab"] { font-size: 0.95rem; font-weight: 600; }
+}}
+.ticker-name  {{ color: {_PALETTE['muted']}; font-size: 0.78rem; font-weight:600; letter-spacing:.05em; }}
+.ticker-price {{ color: {_PALETTE['text']}; font-size: 1.3rem; font-weight: 700; margin: 2px 0; }}
+.ticker-green {{ color: #3fb950; font-size: 0.88rem; font-weight: 600; }}
+.ticker-red   {{ color: #f85149; font-size: 0.88rem; font-weight: 600; }}
+.ticker-gray  {{ color: {_PALETTE['muted']}; font-size: 0.88rem; }}
+thead tr th {{ background: {_PALETTE['panel']} !important; }}
+.stTabs [data-baseweb="tab"] {{ font-size: 0.95rem; font-weight: 600; }}
+
+/* --- MOBILE (≤ 768px) --- */
+@media (max-width: 768px) {{
+    h1 {{ font-size: 1.35rem !important; line-height: 1.2 !important; }}
+    h2 {{ font-size: 1.1rem !important; }}
+    h3 {{ font-size: 1rem !important; }}
+    [data-testid="stMetricValue"] {{ font-size: 1rem !important; }}
+    [data-testid="stMetricLabel"] {{ font-size: 0.72rem !important; }}
+    .stTabs [data-baseweb="tab"] {{
+        font-size: 0.75rem !important;
+        padding: 0.35rem 0.5rem !important;
+    }}
+    .ticker-card  {{ padding: 0.35rem 0.4rem !important; }}
+    .ticker-name  {{ font-size: 0.62rem !important; }}
+    .ticker-price {{ font-size: 0.95rem !important; }}
+    .ticker-green, .ticker-red, .ticker-gray {{ font-size: 0.7rem !important; }}
+    .pending-box {{ padding: 0.6rem 0.8rem !important; font-size: 0.85rem !important; }}
+    .block-container {{ padding-top: 1rem !important; padding-bottom: 1rem !important; }}
+}}
 </style>
 """, unsafe_allow_html=True)
 
@@ -362,6 +395,44 @@ def portfolio_value(start: float, positions: dict, changes: dict) -> float:
         p      = pos[inst]
         total += abs(p) + p * (chg if chg is not None else 0)
     return total
+
+
+def weekly_returns(values):
+    """Stopy zwrotu między kolejnymi wartościami w serii."""
+    out = []
+    for i in range(1, len(values)):
+        prev = values[i - 1]
+        if prev:
+            out.append(values[i] / prev - 1)
+    return out
+
+
+def sharpe_ratio(values, rf_per_week: float = 0.0):
+    """Roczny Sharpe z tygodniowych zwrotów. rf — tygodniowa stopa bez ryzyka."""
+    import math, statistics as _st
+    rets = weekly_returns(values)
+    if len(rets) < 2:
+        return None
+    try:
+        mean  = sum(rets) / len(rets) - rf_per_week
+        stdev = _st.pstdev(rets)
+        if stdev == 0:
+            return None
+        return (mean / stdev) * math.sqrt(52)
+    except Exception:
+        return None
+
+
+def volatility_annual(values):
+    """Roczna zmienność portfela (% sd rocznie)."""
+    import math, statistics as _st
+    rets = weekly_returns(values)
+    if len(rets) < 2:
+        return None
+    try:
+        return _st.pstdev(rets) * math.sqrt(52)
+    except Exception:
+        return None
 
 
 def benchmark_value(start: float, changes: dict) -> float:
@@ -756,6 +827,8 @@ def build_ranking_df(hist, bench, groups_meta,
             total_chg=current - 100,
             vs_bench=current - bench_current,
             is_live=live_v is not None,
+            sharpe=sharpe_ratio(vals),
+            vol=volatility_annual(vals),
         ))
 
     rows.sort(key=lambda r: r["current"], reverse=True)
@@ -772,6 +845,8 @@ def build_ranking_df(hist, bench, groups_meta,
             "Tydzień Δ":          r["week_settled_chg"],
             "Od startu Δ":        r["total_chg"],
             "vs Benchmark":       r["vs_bench"],
+            "Sharpe (roczny)":    r["sharpe"],
+            "Zmienność (%)":      (r["vol"] * 100) if r["vol"] is not None else None,
         })
     return pd.DataFrame(result)
 
@@ -849,6 +924,8 @@ def live_ranking_fragment(hist, bench, groups_meta,
         "Tydzień Δ":         "{:+.3f}",
         "Od startu Δ":       "{:+.3f}",
         "vs Benchmark":      "{:+.3f}",
+        "Sharpe (roczny)":   lambda x: f"{x:.2f}" if x is not None and str(x) != "nan" else "—",
+        "Zmienność (%)":     lambda x: f"{x:.1f}" if x is not None and str(x) != "nan" else "—",
     }
 
     styled = (
@@ -870,6 +947,10 @@ def live_ranking_fragment(hist, bench, groups_meta,
             "Tydzień Δ":          st.column_config.NumberColumn("Tyg. Δ",    format="%+.3f"),
             "Od startu Δ":        st.column_config.NumberColumn("Od startu", format="%+.3f"),
             "vs Benchmark":       st.column_config.NumberColumn("vs Bench",  format="%+.3f"),
+            "Sharpe (roczny)":    st.column_config.TextColumn("Sharpe",      width=80,
+                                    help="Roczny Sharpe ratio z tygodniowych zwrotów (rf=0)."),
+            "Zmienność (%)":      st.column_config.TextColumn("Vol %",       width=80,
+                                    help="Roczna zmienność (sd tygodniowych zwrotów × √52)."),
             "Skład":              st.column_config.TextColumn("Skład",       width=300),
         },
     )
@@ -894,6 +975,28 @@ def live_ranking_fragment(hist, bench, groups_meta,
                 use_container_width=True, hide_index=True,
             )
 
+    with st.expander("🎯 Zawodnicy tygodnia (top 3 per tydzień)"):
+        weekly_rows = []
+        all_labels = list(zip(range(len(hist[next(iter(hist))])), ))  # placeholder
+        # iteruj po tygodniach (indeks 1..n, bo 0 to Start)
+        n_weeks = len(next(iter(hist.values())))
+        for wi in range(1, n_weeks):
+            deltas = [(g, hist[g][wi] - hist[g][wi - 1]) for g in hist]
+            deltas.sort(key=lambda x: x[1], reverse=True)
+            top3 = deltas[:3]
+            weekly_rows.append({
+                "Tydzień":       f"#{wi}",
+                "🥇 Grupa":      top3[0][0] if len(top3) > 0 else "—",
+                "🥇 Δ":          f"{top3[0][1]:+.3f}" if len(top3) > 0 else "—",
+                "🥈 Grupa":      top3[1][0] if len(top3) > 1 else "—",
+                "🥈 Δ":          f"{top3[1][1]:+.3f}" if len(top3) > 1 else "—",
+                "🥉 Grupa":      top3[2][0] if len(top3) > 2 else "—",
+                "🥉 Δ":          f"{top3[2][1]:+.3f}" if len(top3) > 2 else "—",
+            })
+        if weekly_rows:
+            st.dataframe(pd.DataFrame(weekly_rows),
+                         use_container_width=True, hide_index=True)
+
 
 @st.fragment(run_every=300)
 def candlestick_fragment(week_opens: dict):
@@ -907,6 +1010,104 @@ def candlestick_fragment(week_opens: dict):
         "⏱ Dane godzinowe z Yahoo Finance (odśw. co 5 min). "
         "Ceny live orientacyjne – rozliczenie wg stooq.pl."
     )
+
+def show_group_detail_tab(data, hist, bench, labels, groups_meta):
+    st.subheader("Szczegóły grupy")
+    groups = list(hist.keys())
+    if not groups:
+        st.info("Brak danych grup.")
+        return
+
+    default_idx = groups.index("Grupa 13") if "Grupa 13" in groups else 0
+    sel = st.selectbox("Wybierz grupę", groups, index=default_idx, key="detail_group")
+    vals = hist[sel]
+    meta = groups_meta.get(sel, {})
+
+    total   = vals[-1] - 100
+    best_wi = max(range(1, len(vals)), key=lambda i: vals[i] - vals[i - 1]) if len(vals) > 1 else 0
+    worst_wi= min(range(1, len(vals)), key=lambda i: vals[i] - vals[i - 1]) if len(vals) > 1 else 0
+    beat    = sum(1 for i in range(1, len(vals))
+                  if (vals[i] - vals[i-1]) > (bench[i] - bench[i-1]))
+    shp     = sharpe_ratio(vals)
+    vol     = volatility_annual(vals)
+
+    m1, m2, m3, m4 = st.columns(4)
+    with m1: st.metric("Total Δ", f"{total:+.3f} jp")
+    with m2: st.metric("Sharpe (roczny)", f"{shp:.2f}" if shp is not None else "—")
+    with m3: st.metric("Zmienność (roczna)", f"{(vol*100):.1f}%" if vol is not None else "—")
+    with m4: st.metric("Pokonało bench.", f"{beat}/{len(vals)-1} tyg.")
+
+    mbest, mworst = st.columns(2)
+    with mbest:
+        if len(vals) > 1:
+            d = vals[best_wi] - vals[best_wi - 1]
+            st.success(f"🏆 Najlepszy tydzień: **{labels[best_wi]}** ({d:+.3f} jp)")
+    with mworst:
+        if len(vals) > 1:
+            d = vals[worst_wi] - vals[worst_wi - 1]
+            st.error(f"📉 Najsłabszy tydzień: **{labels[worst_wi]}** ({d:+.3f} jp)")
+
+    # wykres: tylko ta grupa + benchmark + średnia
+    import plotly.graph_objects as _go
+    avg_vals = [sum(v[i] for v in hist.values()) / len(hist) for i in range(len(labels))]
+    fig = _go.Figure()
+    fig.add_trace(_go.Scatter(x=labels, y=bench, name="benchmark",
+                              line=dict(color="#FF6B35", width=2, dash="dash")))
+    fig.add_trace(_go.Scatter(x=labels, y=avg_vals, name="średnia",
+                              line=dict(color="#4A9EFF", width=2, dash="dot")))
+    fig.add_trace(_go.Scatter(x=labels, y=vals, name=sel,
+                              line=dict(color="#FFD700", width=3),
+                              mode="lines+markers", marker=dict(size=8)))
+    fig.add_hline(y=100, line_dash="dot", line_color="rgba(255,255,255,0.12)")
+    fig.update_layout(
+        template="plotly_dark" if st.session_state.get("theme") != "light" else "plotly_white",
+        paper_bgcolor="rgba(0,0,0,0)", plot_bgcolor="rgba(0,0,0,0)",
+        height=360, margin=dict(l=40, r=20, t=10, b=30),
+        legend=dict(orientation="h", y=-0.2),
+        yaxis=dict(title="j.p."),
+    )
+    st.plotly_chart(fig, use_container_width=True)
+
+    # tabela pozycji per tydzień + contribution
+    st.markdown("#### Pozycje i wkład per tydzień")
+    rows = []
+    for wi, week in enumerate([w for w in data.get("weeks", []) if w.get("completed")]):
+        eff, _ = effective_prices(week)
+        if any(eff["open"].get(i) is None or eff["close"].get(i) is None for i in INSTRUMENTS):
+            continue
+        chg = price_changes(eff)
+        pos = (week.get("positions") or {}).get(sel) or {}
+        alloc = sum(abs(pos.get(i) or 0) for i in INSTRUMENTS)
+        contrib = {i: (pos.get(i) or 0) * (chg.get(i) or 0) for i in INSTRUMENTS}
+        rows.append({
+            "Tydzień":  week["label"],
+            "SPX pos":  pos.get("SPX") or 0,
+            "SPX Δ":    contrib["SPX"],
+            "XAU pos":  pos.get("XAUUSD") or 0,
+            "XAU Δ":    contrib["XAUUSD"],
+            "Bond pos": pos.get("BOND10Y") or 0,
+            "Bond Δ":   contrib["BOND10Y"],
+            "EUR pos":  pos.get("EURUSD") or 0,
+            "EUR Δ":    contrib["EURUSD"],
+            "|alok.|":  alloc,
+            "Suma Δ":   sum(contrib.values()),
+        })
+    if rows:
+        def _clr(v):
+            if not isinstance(v, (int, float)):
+                return ""
+            return "color:#3fb950" if v > 0 else ("color:#f85149" if v < 0 else "")
+        df_pos = pd.DataFrame(rows)
+        fmt = {c: "{:+.3f}" for c in ["SPX Δ", "XAU Δ", "Bond Δ", "EUR Δ", "Suma Δ"]}
+        fmt.update({c: "{:.2f}" for c in ["SPX pos", "XAU pos", "Bond pos", "EUR pos", "|alok.|"]})
+        st.dataframe(
+            df_pos.style.format(fmt).map(_clr, subset=["SPX Δ", "XAU Δ", "Bond Δ", "EUR Δ", "Suma Δ"]),
+            use_container_width=True, hide_index=True,
+        )
+
+    st.caption(f"Skład: **{', '.join(meta.get('members', []))}** · "
+               f"Rok {meta.get('year', '?')}")
+
 
 def show_positions_tab(data, hist):
     pending  = data.get("pending_week", {})
@@ -1307,12 +1508,35 @@ def main():
         elif data.get("weeks"):
             st.markdown(f"**Ostatni zamknięty:** {data['weeks'][-1]['label']}")
     with scol:
+        theme_btn = "☀️ Jasny" if st.session_state.theme == "dark" else "🌙 Ciemny"
+        c_bell, c_theme = st.columns(2)
+        with c_bell:
+            if st.button("🔔", help="Wall Street bell", key="bell_btn"):
+                st.markdown("""
+<audio autoplay>
+  <source src="https://www.myinstants.com/media/sounds/bell-ringing-04.mp3" type="audio/mpeg">
+</audio>""", unsafe_allow_html=True)
+        with c_theme:
+            if st.button(theme_btn, key="theme_btn"):
+                st.session_state.theme = "light" if st.session_state.theme == "dark" else "dark"
+                st.rerun()
         st.markdown(
-            f"<div style='text-align:right;color:#586069;font-size:0.82rem;"
-            f"padding-top:1.8rem'>Grup: {len(groups_meta)} · Tygodni: {n_done}"
-            f"<br>Kapitał start: 100 jp</div>",
+            f"<div style='text-align:right;color:#586069;font-size:0.78rem'>"
+            f"Grup: {len(groups_meta)} · Tygodni: {n_done} · Start: 100 jp"
+            f"</div>",
             unsafe_allow_html=True,
         )
+
+    # --- confetti przy zmianie lidera ---
+    if n_done >= 1:
+        final      = {g: v[-1] for g, v in hist.items()}
+        current_leader = max(final, key=final.get)
+        prev_leader    = st.session_state.get("prev_leader")
+        if prev_leader and prev_leader != current_leader:
+            st.balloons()
+            st.success(f"🎉 Nowy lider: **{current_leader}**! "
+                       f"(poprzedni: {prev_leader})")
+        st.session_state["prev_leader"] = current_leader
 
     if week_opens and HAS_YF:
         st.markdown("")
@@ -1364,10 +1588,11 @@ def main():
             unsafe_allow_html=True,
         )
 
-    tab_chart, tab_rank, tab_live, tab_pos, tab_admin = st.tabs([
+    tab_chart, tab_rank, tab_live, tab_detail, tab_pos, tab_admin = st.tabs([
         "📈 Wykres",
         "🏆 Ranking",
         "🕯️ Rynek live",
+        "👤 Grupa",
         "📋 Pozycje",
         "⚙️ Admin",
     ])
@@ -1520,6 +1745,12 @@ def main():
                 "Zielona/czerwona — kurs live. Odśwież co 5 min."
             )
             candlestick_fragment(live_opens)
+
+    with tab_detail:
+        if n_done >= 1:
+            show_group_detail_tab(data, hist, bench, labels, groups_meta)
+        else:
+            st.info("Detale grupy pojawią się po rozliczeniu pierwszego tygodnia.")
 
     with tab_pos:
         show_positions_tab(data, hist)
