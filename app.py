@@ -339,9 +339,13 @@ def build_history(data: dict):
         labels.append(week["label"])
         provisional_flags.append(week_is_provisional(sources))
         bench.append(benchmark_value(bench[-1], chg))
+        canonical = week.get("canonical_values") or {}
         for g in groups:
             pos = (week.get("positions") or {}).get(g) or {}
-            hist[g].append(portfolio_value(hist[g][-1], pos, chg))
+            computed = portfolio_value(hist[g][-1], pos, chg)
+            # jeśli mamy "oficjalny" stan portfela z arkusza Excel → użyj go
+            override = canonical.get(g)
+            hist[g].append(float(override) if override is not None else computed)
 
     return hist, bench, labels, provisional_flags
 
