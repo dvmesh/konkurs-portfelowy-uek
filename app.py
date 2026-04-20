@@ -188,11 +188,14 @@ def fetch_hourly_df(inst: str):
         return None
 
 
-@st.cache_data(ttl=3600, show_spinner=False)
+@st.cache_data(ttl=900, show_spinner=False)
 def fetch_weekly_bounds_yf(inst: str, week_start_iso: str):
-    """Return (open_price, close_price) for the trading week starting `week_start_iso`.
-    Open = first daily open on/after week_start. Close = last daily close on/before week_start+6.
-    Returns (None, None) on failure.
+    """Return (open_price, close_price) dla tygodnia [ws, ws+7).
+
+    Fallbacki:
+      - brak daily baru w tym tygodniu (np. poniedziałek premarket, weekend) →
+        bierzemy ostatni dostępny close z 14 dni wstecz jako open-proxy
+      - brak close (tydzień w trakcie) → ostatni dostępny close lub live_price
     """
     if not HAS_YF or not week_start_iso:
         return None, None
@@ -207,11 +210,34 @@ def fetch_weekly_bounds_yf(inst: str, week_start_iso: str):
                          start=ws.strftime("%Y-%m-%d"),
                          end=end.strftime("%Y-%m-%d"),
                          interval="1d", auto_adjust=True, progress=False)
-        if df is None or df.empty:
-            return None, None
-        if isinstance(df.columns, pd.MultiIndex):
+        if isinstance(df.columns, pd.MultiIndex) if df is not None else False:
             df.columns = [c[0] for c in df.columns]
-        return float(df["Open"].iloc[0]), float(df["Close"].iloc[-1])
+
+        open_px  = None
+        close_px = None
+        if df is not None and not df.empty:
+            open_px  = float(df["Open"].iloc[0])
+            close_px = float(df["Close"].iloc[-1])
+
+        # fallback: jeśli daily bar nie istnieje w tym tygodniu, sięgnij do wcześniejszych 14 dni
+        if open_px is None:
+            back = yf.download(ticker,
+                               start=(ws - _td(days=14)).strftime("%Y-%m-%d"),
+                               end=ws.strftime("%Y-%m-%d"),
+                               interval="1d", auto_adjust=True, progress=False)
+            if isinstance(back.columns, pd.MultiIndex) if back is not None else False:
+                back.columns = [c[0] for c in back.columns]
+            if back is not None and not back.empty:
+                open_px = float(back["Close"].iloc[-1])  # ostatni znany close jako proxy
+
+        # dla close: jeśli wciąż brak, weź fast_info.last_price
+        if close_px is None:
+            try:
+                close_px = float(yf.Ticker(ticker).fast_info.last_price)
+            except Exception:
+                pass
+
+        return open_px, close_px
     except Exception:
         return None, None
 
@@ -349,62 +375,146 @@ def build_history(data: dict):
 
     return hist, bench, labels, provisional_flags
 
-def build_equity_chart(hist, bench, labels, groups_meta):
-    fig   = go.Figure()
+def build_equity_chart(hist, bench, labels, groups_meta,
+                       year_filter="Wszystkie", extra_groups=None, top_n=5):
+    """Czystszy wykres equity.
+
+    Domyślnie:
+      - top_n grup (z medalami dla 3 najlepszych) jako czytelne linie,
+      - pasmo percentyli 25–75% + min/max jako rozmyty kontekst,
+      - średnia + benchmark jako punkty referencyjne.
+    `extra_groups` są dokładane jako wyraźne linie (np. własna grupa).
+    """
+    extra_groups = extra_groups or []
+
+    # filtruj grupy po roku
+    if year_filter == "Rok 1":
+        hist = {g: v for g, v in hist.items() if groups_meta.get(g, {}).get("year") == 1}
+    elif year_filter == "Rok 2":
+        hist = {g: v for g, v in hist.items() if groups_meta.get(g, {}).get("year") == 2}
+
+    if not hist:
+        return go.Figure()
+
     final = {g: v[-1] for g, v in hist.items()}
-    top3  = [g for g, _ in sorted(final.items(), key=lambda x: x[1], reverse=True)[:3]]
-    top_colors = ["#FFD700", "#C0C0C0", "#CD7F32"]
+    top   = [g for g, _ in sorted(final.items(), key=lambda x: x[1], reverse=True)[:top_n]]
+    top_set = set(top) | set(extra_groups)
 
-    for g, vals in hist.items():
-        if g in top3:
-            continue
-        yr = groups_meta.get(g, {}).get("year", "")
-        fig.add_trace(go.Scatter(
-            x=labels, y=vals, name=g, mode="lines",
-            line=dict(color="rgba(140,150,170,0.22)", width=1),
-            hovertemplate=f"<b>{g}</b> (Rok {yr})<br>%{{x}}: %{{y:.3f}} jp<extra></extra>",
-        ))
+    # percentyle na "tle"
+    n_points = len(labels)
+    p25, p50, p75, pmin, pmax = [], [], [], [], []
+    for i in range(n_points):
+        vals = sorted(v[i] for v in hist.values())
+        if not vals:
+            p25.append(None); p50.append(None); p75.append(None)
+            pmin.append(None); pmax.append(None); continue
+        def q(qq):
+            idx = max(0, min(len(vals) - 1, int(round(qq * (len(vals) - 1)))))
+            return vals[idx]
+        p25.append(q(0.25)); p50.append(q(0.50)); p75.append(q(0.75))
+        pmin.append(vals[0]); pmax.append(vals[-1])
 
-    for idx, g in enumerate(top3):
-        yr = groups_meta.get(g, {}).get("year", "")
-        fig.add_trace(go.Scatter(
-            x=labels, y=hist[g], name=f"{MEDALS[idx]} {g}",
-            mode="lines+markers",
-            line=dict(color=top_colors[idx], width=2.5),
-            marker=dict(size=7),
-            hovertemplate=f"<b>{MEDALS[idx]} {g}</b> (Rok {yr})<br>%{{x}}: %{{y:.3f}} jp<extra></extra>",
-        ))
+    fig = go.Figure()
 
-    avg_vals = [sum(hist[g][i] for g in hist) / len(hist) for i in range(len(labels))]
+    # pasmo min-max (najszersze, bardzo przezroczyste)
     fig.add_trace(go.Scatter(
-        x=labels, y=avg_vals, name="⌀ Średnia konkursu",
+        x=labels, y=pmax, mode="lines", line=dict(width=0),
+        name="zakres min–max", showlegend=False, hoverinfo="skip",
+    ))
+    fig.add_trace(go.Scatter(
+        x=labels, y=pmin, mode="lines", line=dict(width=0),
+        fill="tonexty", fillcolor="rgba(140,150,170,0.10)",
+        name="zakres min–max",
+        hovertemplate="min–max: %{y:.2f}<extra></extra>",
+    ))
+    # pasmo percentyli 25–75
+    fig.add_trace(go.Scatter(
+        x=labels, y=p75, mode="lines", line=dict(width=0),
+        showlegend=False, hoverinfo="skip",
+    ))
+    fig.add_trace(go.Scatter(
+        x=labels, y=p25, mode="lines", line=dict(width=0),
+        fill="tonexty", fillcolor="rgba(74,158,255,0.15)",
+        name="25–75 percentyl",
+        hovertemplate="25–75: %{y:.2f}<extra></extra>",
+    ))
+    # mediana
+    fig.add_trace(go.Scatter(
+        x=labels, y=p50, name="mediana", mode="lines",
+        line=dict(color="rgba(200,210,225,0.5)", width=1.5, dash="dot"),
+        hovertemplate="<b>mediana</b><br>%{x}: %{y:.3f}<extra></extra>",
+    ))
+
+    # benchmark + średnia zawsze widoczne
+    avg_vals = [sum(v[i] for v in hist.values()) / len(hist) for i in range(n_points)]
+    fig.add_trace(go.Scatter(
+        x=labels, y=avg_vals, name="⌀ średnia",
         mode="lines+markers",
         line=dict(color="#4A9EFF", width=2.5, dash="dot"),
         marker=dict(size=7, symbol="diamond"),
-        hovertemplate="<b>Średnia</b><br>%{x}: %{y:.3f} jp<extra></extra>",
+        hovertemplate="<b>średnia</b><br>%{x}: %{y:.3f}<extra></extra>",
     ))
     fig.add_trace(go.Scatter(
-        x=labels, y=bench, name="Benchmark 4×25%",
+        x=labels, y=bench, name="benchmark 4×25%",
         mode="lines+markers",
         line=dict(color="#FF6B35", width=2.5, dash="dash"),
         marker=dict(size=7, symbol="square"),
-        hovertemplate="<b>Benchmark</b><br>%{x}: %{y:.3f} jp<extra></extra>",
+        hovertemplate="<b>benchmark</b><br>%{x}: %{y:.3f}<extra></extra>",
     ))
+
+    # top N — 3 pierwsi mają medale + gold/silver/bronze, reszta paleta
+    top_colors_medal = ["#FFD700", "#C0C0C0", "#CD7F32"]
+    extra_palette    = ["#7ee787", "#ff7b72", "#d2a8ff", "#79c0ff", "#f2cc60", "#ffa657"]
+
+    for idx, g in enumerate(top):
+        yr = groups_meta.get(g, {}).get("year", "")
+        if idx < 3:
+            color = top_colors_medal[idx]
+            name  = f"{MEDALS[idx]} {g}"
+            width = 3
+        else:
+            color = extra_palette[(idx - 3) % len(extra_palette)]
+            name  = f"#{idx+1} {g}"
+            width = 2
+        fig.add_trace(go.Scatter(
+            x=labels, y=hist[g], name=name, mode="lines+markers",
+            line=dict(color=color, width=width), marker=dict(size=7),
+            hovertemplate=f"<b>{name}</b> (Rok {yr})<br>%{{x}}: %{{y:.3f}}<extra></extra>",
+        ))
+
+    # dodatkowe grupy (np. własna)
+    highlight_palette = ["#58a6ff", "#bc8cff", "#ffa657", "#56d364"]
+    for i, g in enumerate(extra_groups):
+        if g in top_set and g in top:
+            continue  # już jest w top
+        if g not in hist:
+            continue
+        yr = groups_meta.get(g, {}).get("year", "")
+        fig.add_trace(go.Scatter(
+            x=labels, y=hist[g], name=f"★ {g}", mode="lines+markers",
+            line=dict(color=highlight_palette[i % len(highlight_palette)], width=2.5),
+            marker=dict(size=7, symbol="star"),
+            hovertemplate=f"<b>★ {g}</b> (Rok {yr})<br>%{{x}}: %{{y:.3f}}<extra></extra>",
+        ))
+
     fig.add_hline(y=100, line_dash="dot",
                   line_color="rgba(255,255,255,0.12)", line_width=1)
+
     fig.update_layout(
         template="plotly_dark",
         paper_bgcolor="rgba(0,0,0,0)",
         plot_bgcolor="rgba(13,17,23,0.6)",
         font=dict(family="Inter, sans-serif", size=12, color="#c9d1d9"),
-        legend=dict(x=1.01, y=1, xanchor="left",
-                    bgcolor="rgba(22,27,34,0.9)",
-                    bordercolor="#30363d", borderwidth=1, font=dict(size=11)),
+        legend=dict(
+            orientation="h", y=-0.18, x=0, xanchor="left",
+            bgcolor="rgba(22,27,34,0.9)",
+            bordercolor="#30363d", borderwidth=1, font=dict(size=11),
+        ),
         xaxis=dict(gridcolor="#21262d", linecolor="#30363d"),
         yaxis=dict(gridcolor="#21262d", linecolor="#30363d",
                    title="Wartość portfela (j.p.)", tickformat=".2f"),
-        hovermode="x unified", height=420,
-        margin=dict(l=60, r=220, t=20, b=40),
+        hovermode="x unified", height=460,
+        margin=dict(l=60, r=30, t=20, b=100),
     )
     return fig
 
@@ -762,9 +872,13 @@ def _admin_open_week(data, sha):
         st.info(f"Tydzień **{open_wks[-1]['label']}** już otwarty. Zamknij najpierw.")
         return
 
-    # sugerowana data: dzisiejszy poniedziałek lub najbliższy
     today = date.today()
     default_monday = today + timedelta(days=(7 - today.weekday()) % 7)
+
+    st.caption(
+        "Ceny otwarcia ściągane automatycznie z yfinance. "
+        "Oficjalne ze stooq możesz wpisać później w zakładce „Uzupełnij ceny oficjalne”."
+    )
 
     with st.form("form_open_week"):
         c1, c2 = st.columns([1, 2])
@@ -775,30 +889,22 @@ def _admin_open_week(data, sha):
             auto_label = f"{wstart.strftime('%d.%m')} – {wend_default.strftime('%d.%m')}"
             label = st.text_input("Etykieta", value=auto_label)
 
-        auto_yf = st.checkbox(
-            "📡 Użyj yfinance dla cen otwarcia "
-            "(oficjalne ze stooq można wpisać później w zakładce Uzupełnij ceny)",
-            value=True,
-        )
-
-        if not auto_yf:
-            st.markdown("**Ceny otwarcia ze stooq.pl**")
-            cols  = st.columns(4)
-            opens = {}
+        manual_opens = {i: 0.0 for i in INSTRUMENTS}
+        with st.expander("Wpisz ręczne ceny otwarcia (opcjonalnie)"):
+            cols = st.columns(4)
             for i, inst in enumerate(INSTRUMENTS):
                 with cols[i]:
-                    opens[inst] = st.number_input(INST_SHORT[inst],
-                                                  min_value=0.0, value=0.0,
-                                                  format="%.5f", key=f"o_{inst}")
-        else:
-            opens = {i: 0.0 for i in INSTRUMENTS}
+                    manual_opens[inst] = st.number_input(
+                        INST_SHORT[inst], min_value=0.0, value=0.0,
+                        format="%.5f", key=f"o_{inst}",
+                    )
 
         if st.form_submit_button("Otwórz tydzień ➜", type="primary"):
             if not label:
                 st.error("Podaj etykietę.")
                 return
             final_opens = {
-                inst: (opens[inst] if (not auto_yf and opens[inst] > 0) else None)
+                inst: (manual_opens[inst] if manual_opens[inst] > 0 else None)
                 for inst in INSTRUMENTS
             }
             data.setdefault("weeks", []).append(dict(
@@ -971,42 +1077,54 @@ def _admin_close_week(data, sha):
         return
 
     week  = open_wks[-1]
-    opens = (week.get("prices") or {}).get("open") or {}
-    st.markdown(f"Zamykasz: **{week['label']}** &nbsp; "
-                "<span style='color:#8b949e'>Puste pole = szacunek z yfinance</span>",
-                unsafe_allow_html=True)
+    st.markdown(f"Zamykasz: **{week['label']}**")
+    st.caption(
+        "Jeden klik → tydzień zamknięty, ceny zamknięcia ściągnięte z yfinance. "
+        "Oficjalne ze stooq wpiszesz później w zakładce „Uzupełnij ceny oficjalne”."
+    )
 
-    live = fetch_live_prices() if HAS_YF else {}
+    if st.button("🏁 Zamknij tydzień (yfinance)", type="primary"):
+        week["prices"]["close"] = {i: None for i in INSTRUMENTS}
+        week["completed"]       = True
+        data["pending_week"]    = dict(
+            label="Następny tydzień", waiting_for_positions=True,
+        )
+        ok, msg = save_data(data, sha)
+        st.success(msg) if ok else st.error(msg)
+        if ok:
+            st.rerun()
 
-    with st.form("form_close_week"):
-        cols   = st.columns(4)
-        closes = {}
-        for i, inst in enumerate(INSTRUMENTS):
-            with cols[i]:
-                st.markdown(f"**{INST_SHORT[inst]}**")
-                st.caption(
-                    f"open: {opens.get(inst) or '—'}"
-                    + (f"  ·  yf live: {live[inst]:.5g}" if live.get(inst) else "")
+    with st.expander("Wpisz ręczne ceny zamknięcia (opcjonalnie)"):
+        opens = (week.get("prices") or {}).get("open") or {}
+        live  = fetch_live_prices() if HAS_YF else {}
+        with st.form("form_close_week_manual"):
+            cols   = st.columns(4)
+            closes = {}
+            for i, inst in enumerate(INSTRUMENTS):
+                with cols[i]:
+                    st.markdown(f"**{INST_SHORT[inst]}**")
+                    st.caption(
+                        f"open: {opens.get(inst) or '—'}"
+                        + (f"  ·  yf: {live[inst]:.5g}" if live.get(inst) else "")
+                    )
+                    closes[inst] = st.number_input(
+                        "close", min_value=0.0, value=0.0,
+                        format="%.5f", key=f"c_{inst}", label_visibility="collapsed",
+                    )
+            if st.form_submit_button("Zamknij z ręcznymi cenami"):
+                final_closes = {
+                    inst: (closes[inst] if closes[inst] > 0 else None)
+                    for inst in INSTRUMENTS
+                }
+                week["prices"]["close"] = final_closes
+                week["completed"]       = True
+                data["pending_week"]    = dict(
+                    label="Następny tydzień", waiting_for_positions=True,
                 )
-                closes[inst] = st.number_input(
-                    "close", min_value=0.0, value=0.0,
-                    format="%.5f", key=f"c_{inst}", label_visibility="collapsed",
-                )
-        if st.form_submit_button("🏁 Zamknij i oblicz wyniki", type="primary"):
-            final_closes = {
-                inst: (closes[inst] if closes[inst] > 0 else None)
-                for inst in INSTRUMENTS
-            }
-            week["prices"]["close"] = final_closes
-            week["completed"]       = True
-            data["pending_week"]    = dict(
-                label="Następny tydzień",
-                waiting_for_positions=True,
-            )
-            ok, msg = save_data(data, sha)
-            st.success(msg) if ok else st.error(msg)
-            if ok:
-                st.rerun()
+                ok, msg = save_data(data, sha)
+                st.success(msg) if ok else st.error(msg)
+                if ok:
+                    st.rerun()
 
 def main():
     data, sha = load_data()
@@ -1123,8 +1241,26 @@ def main():
 
     with tab_chart:
         if n_done >= 1:
+            fc1, fc2 = st.columns([1, 3])
+            with fc1:
+                year_filter = st.radio(
+                    "Rok", ["Wszystkie", "Rok 1", "Rok 2"],
+                    horizontal=True, key="chart_year",
+                )
+            with fc2:
+                all_groups = sorted(
+                    groups_meta.keys(),
+                    key=lambda g: (groups_meta[g].get("year", 0),
+                                   int("".join(c for c in g if c.isdigit()) or 0)),
+                )
+                extra = st.multiselect(
+                    "Dodaj grupy do wykresu (np. swoją)",
+                    options=all_groups, default=[], key="chart_extra",
+                )
+
             st.plotly_chart(
-                build_equity_chart(hist, bench, labels, groups_meta),
+                build_equity_chart(hist, bench, labels, groups_meta,
+                                   year_filter=year_filter, extra_groups=extra),
                 use_container_width=True,
             )
 
