@@ -187,6 +187,101 @@ def fetch_hourly_df(inst: str):
     except Exception:
         return None
 
+
+@st.cache_data(ttl=3600, show_spinner=False)
+def fetch_weekly_bounds_yf(inst: str, week_start_iso: str):
+    """Return (open_price, close_price) for the trading week starting `week_start_iso`.
+    Open = first daily open on/after week_start. Close = last daily close on/before week_start+6.
+    Returns (None, None) on failure.
+    """
+    if not HAS_YF or not week_start_iso:
+        return None, None
+    ticker = YF_TICKERS.get(inst)
+    if not ticker:
+        return None, None
+    try:
+        from datetime import datetime as _dt, timedelta as _td
+        ws = _dt.strptime(week_start_iso, "%Y-%m-%d").date()
+        end = ws + _td(days=7)
+        df = yf.download(ticker,
+                         start=ws.strftime("%Y-%m-%d"),
+                         end=end.strftime("%Y-%m-%d"),
+                         interval="1d", auto_adjust=True, progress=False)
+        if df is None or df.empty:
+            return None, None
+        if isinstance(df.columns, pd.MultiIndex):
+            df.columns = [c[0] for c in df.columns]
+        return float(df["Open"].iloc[0]), float(df["Close"].iloc[-1])
+    except Exception:
+        return None, None
+
+
+def effective_prices(week: dict):
+    """Merge manual prices from data.json with yfinance fallback.
+
+    Returns (prices_dict, sources) where:
+      prices_dict = {"open": {inst: value|None}, "close": {inst: value|None}}
+      sources     = {"open": {inst: "manual"|"yfinance"|"missing"}, "close": {...}}
+    """
+    raw     = week.get("prices") or {}
+    raw_op  = raw.get("open")  or {}
+    raw_cl  = raw.get("close") or {}
+    ws_iso  = week.get("week_start")
+
+    opens, closes = {}, {}
+    sources = {"open": {}, "close": {}}
+
+    # decide which instruments need yfinance
+    need_yf = {}
+    for inst in INSTRUMENTS:
+        o_m = raw_op.get(inst)
+        c_m = raw_cl.get(inst)
+        need_yf[inst] = (not o_m) or (not c_m)
+
+    yf_cache = {}
+    for inst in INSTRUMENTS:
+        if need_yf[inst]:
+            yf_cache[inst] = fetch_weekly_bounds_yf(inst, ws_iso)
+        else:
+            yf_cache[inst] = (None, None)
+
+    for inst in INSTRUMENTS:
+        o_m = raw_op.get(inst)
+        c_m = raw_cl.get(inst)
+        yo, yc = yf_cache[inst]
+
+        if o_m:
+            opens[inst] = o_m
+            sources["open"][inst] = "manual"
+        elif yo is not None:
+            opens[inst] = yo
+            sources["open"][inst] = "yfinance"
+        else:
+            opens[inst] = None
+            sources["open"][inst] = "missing"
+
+        if c_m:
+            closes[inst] = c_m
+            sources["close"][inst] = "manual"
+        elif yc is not None:
+            closes[inst] = yc
+            sources["close"][inst] = "yfinance"
+        else:
+            closes[inst] = None
+            sources["close"][inst] = "missing"
+
+    return {"open": opens, "close": closes}, sources
+
+
+def week_is_provisional(sources: dict) -> bool:
+    """True if any effective price came from yfinance (not manual)."""
+    for side in ("open", "close"):
+        for s in sources.get(side, {}).values():
+            if s == "yfinance":
+                return True
+    return False
+
+
 def price_changes(prices: dict) -> dict:
     op = prices.get("open") or {}
     cl = prices.get("close") or {}
@@ -222,24 +317,33 @@ def benchmark_value(start: float, changes: dict) -> float:
 
 
 def build_history(data: dict):
-    completed = [
-        w for w in data.get("weeks", [])
-        if w.get("completed") and (w.get("prices") or {}).get("close")
-    ]
+    """Return (hist, bench, labels, provisional_flags).
+
+    Includes every week marked completed — even if prices are incomplete,
+    missing values are filled from yfinance (tryb provisional).
+    provisional_flags[i] is True if labels[i]'s prices weren't fully manual.
+    """
+    completed = [w for w in data.get("weeks", []) if w.get("completed")]
     groups = list(data.get("groups", {}).keys())
     hist   = {g: [100.0] for g in groups}
     bench  = [100.0]
     labels = ["Start"]
+    provisional_flags = [False]
 
     for week in completed:
-        chg = price_changes(week["prices"])
+        eff, sources = effective_prices(week)
+        # skip week if we couldn't assemble prices at all
+        if any(eff["open"].get(i) is None or eff["close"].get(i) is None for i in INSTRUMENTS):
+            continue
+        chg = price_changes(eff)
         labels.append(week["label"])
+        provisional_flags.append(week_is_provisional(sources))
         bench.append(benchmark_value(bench[-1], chg))
         for g in groups:
             pos = (week.get("positions") or {}).get(g) or {}
             hist[g].append(portfolio_value(hist[g][-1], pos, chg))
 
-    return hist, bench, labels
+    return hist, bench, labels, provisional_flags
 
 def build_equity_chart(hist, bench, labels, groups_meta):
     fig   = go.Figure()
@@ -633,13 +737,17 @@ def admin_panel(data, sha):
         st.rerun()
     st.divider()
 
-    t1, t2, t3 = st.tabs(["Otwórz tydzień", "Pozycje", "Zamknij tydzień"])
+    t1, t2, t3, t4 = st.tabs([
+        "Otwórz tydzień", "Pozycje", "Zamknij tydzień", "Uzupełnij ceny oficjalne",
+    ])
     with t1:
         _admin_open_week(data, sha)
     with t2:
         _admin_positions(data, sha)
     with t3:
         _admin_close_week(data, sha)
+    with t4:
+        _admin_update_prices(data, sha)
 
 
 def _admin_open_week(data, sha):
@@ -655,7 +763,14 @@ def _admin_open_week(data, sha):
             label  = st.text_input("Etykieta", placeholder="30.03 – 03.04")
         with c2:
             wstart = st.date_input("Data otwarcia (poniedziałek)")
+
+        auto_yf = st.checkbox(
+            "📡 Pobierz ceny otwarcia automatycznie z yfinance "
+            "(pole manualne pominięte, oficjalne można wpisać później)",
+            value=False,
+        )
         st.markdown("**Ceny otwarcia** (stooq.pl – niedzielne 23:00 / poniedziałek)")
+        st.caption("Zostaw 0 żeby użyć yfinance dla danego instrumentu.")
         cols  = st.columns(4)
         opens = {}
         for i, inst in enumerate(INSTRUMENTS):
@@ -669,10 +784,15 @@ def _admin_open_week(data, sha):
             if not label:
                 st.error("Podaj etykietę.")
                 return
+            # if auto_yf lub value=0 → zapisz None (fallback do yfinance)
+            final_opens = {
+                inst: (opens[inst] if (not auto_yf and opens[inst] > 0) else None)
+                for inst in INSTRUMENTS
+            }
             data.setdefault("weeks", []).append(dict(
                 label=label, week_start=wstart.strftime("%Y-%m-%d"),
                 completed=False,
-                prices=dict(open=opens, close=None),
+                prices=dict(open=final_opens, close=None),
                 positions={},
             ))
             data["pending_week"] = dict(
@@ -735,6 +855,72 @@ def _admin_positions(data, sha):
                 st.rerun()
 
 
+def _admin_update_prices(data, sha):
+    """Uzupełnij oficjalne ceny (stooq) dla tygodnia, który wcześniej był szacunkowy."""
+    st.subheader("Uzupełnij oficjalne ceny ze stooq.pl")
+    st.caption("Użyj gdy wcześniej tydzień leciał na yfinance (szacunek) "
+               "i dostałeś finalne dane ze stooq.")
+
+    weeks = data.get("weeks", [])
+    if not weeks:
+        st.info("Brak tygodni.")
+        return
+
+    options = [f"{i}: {w['label']}" for i, w in enumerate(weeks)]
+    pick = st.selectbox("Tydzień", options, index=len(options) - 1)
+    idx = int(pick.split(":")[0])
+    week = weeks[idx]
+
+    raw     = week.get("prices") or {}
+    raw_op  = raw.get("open")  or {}
+    raw_cl  = raw.get("close") or {}
+    eff, src = effective_prices(week)
+
+    st.markdown(f"**{week['label']}** &nbsp; start: {week.get('week_start','?')}", unsafe_allow_html=True)
+    if week_is_provisional(src):
+        st.warning("Ten tydzień używa szacunków z yfinance. Wpisanie wartości tu je zastąpi.")
+    else:
+        st.success("Ten tydzień ma już komplet oficjalnych cen.")
+
+    with st.form(f"form_update_prices_{idx}"):
+        st.markdown("**Ceny otwarcia**")
+        co = st.columns(4)
+        new_op = {}
+        for i, inst in enumerate(INSTRUMENTS):
+            with co[i]:
+                manual = raw_op.get(inst) or 0.0
+                hint   = "" if src["open"][inst] == "manual" else f"  · yf: {eff['open'].get(inst) or '—'}"
+                new_op[inst] = st.number_input(
+                    f"open {INST_SHORT[inst]}{hint}",
+                    min_value=0.0, value=float(manual),
+                    format="%.5f", key=f"up_o_{idx}_{inst}",
+                )
+
+        st.markdown("**Ceny zamknięcia**")
+        cc = st.columns(4)
+        new_cl = {}
+        for i, inst in enumerate(INSTRUMENTS):
+            with cc[i]:
+                manual = raw_cl.get(inst) or 0.0
+                hint   = "" if src["close"][inst] == "manual" else f"  · yf: {eff['close'].get(inst) or '—'}"
+                new_cl[inst] = st.number_input(
+                    f"close {INST_SHORT[inst]}{hint}",
+                    min_value=0.0, value=float(manual),
+                    format="%.5f", key=f"up_c_{idx}_{inst}",
+                )
+
+        if st.form_submit_button("💾 Zapisz oficjalne ceny"):
+            # 0 → None (nadal fallback do yfinance)
+            week["prices"] = {
+                "open":  {i: (new_op[i] if new_op[i] > 0 else None) for i in INSTRUMENTS},
+                "close": {i: (new_cl[i] if new_cl[i] > 0 else None) for i in INSTRUMENTS},
+            }
+            ok, msg = save_data(data, sha)
+            st.success(msg) if ok else st.error(msg)
+            if ok:
+                st.rerun()
+
+
 def _admin_close_week(data, sha):
     st.subheader("Zamknij tydzień")
     open_wks = [w for w in data.get("weeks", []) if not w.get("completed")]
@@ -746,19 +932,29 @@ def _admin_close_week(data, sha):
     opens = (week.get("prices") or {}).get("open") or {}
     st.markdown(f"Zamykasz: **{week['label']}**")
 
+    live = fetch_live_prices() if HAS_YF else {}
+
     with st.form("form_close_week"):
         st.markdown("**Ceny zamknięcia (piątek wieczór – stooq.pl)**")
+        st.caption("Zostaw 0 żeby użyć yfinance dla danego instrumentu (tryb szacunku finalnego).")
         cols   = st.columns(4)
         closes = {}
         for i, inst in enumerate(INSTRUMENTS):
             with cols[i]:
+                hint = ""
+                if live.get(inst):
+                    hint = f"  · live yf: **{live[inst]:.5g}**"
                 closes[inst] = st.number_input(
-                    f"{INST_SHORT[inst]}\n*(open: {opens.get(inst, '?')})*",
+                    f"{INST_SHORT[inst]}  *(open: {opens.get(inst, '?')})*{hint}",
                     min_value=0.0, value=0.0,
                     format="%.5f", key=f"c_{inst}",
                 )
         if st.form_submit_button("🏁 Zamknij i oblicz wyniki"):
-            week["prices"]["close"] = closes
+            final_closes = {
+                inst: (closes[inst] if closes[inst] > 0 else None)
+                for inst in INSTRUMENTS
+            }
+            week["prices"]["close"] = final_closes
             week["completed"]       = True
             data["pending_week"]    = dict(
                 label="Następny tydzień",
@@ -775,9 +971,10 @@ def main():
         st.error("Nie można załadować danych.")
         return
 
-    groups_meta         = data.get("groups", {})
-    hist, bench, labels = build_history(data)
-    n_done              = len(labels) - 1
+    groups_meta                      = data.get("groups", {})
+    hist, bench, labels, prov_flags  = build_history(data)
+    n_done                           = len(labels) - 1
+    any_provisional                  = any(prov_flags)
     pending             = data.get("pending_week", {})
     open_wks            = [w for w in data.get("weeks", []) if not w.get("completed")]
 
@@ -845,6 +1042,18 @@ def main():
             unsafe_allow_html=True,
         )
 
+    if any_provisional:
+        prov_labels = [labels[i] for i in range(1, len(labels)) if prov_flags[i]]
+        st.markdown(
+            f'<div class="pending-box" style="background:#2a1f05;border-color:#d29922">'
+            f'📊 <strong>Szacunek finalny.</strong> Niektóre tygodnie używają cen z '
+            f'yfinance (brak oficjalnych cen ze stooq): '
+            f'<em>{", ".join(prov_labels)}</em>. '
+            f'Wyniki zaktualizują się gdy prowadzący wpisze oficjalne ceny.'
+            f'</div>',
+            unsafe_allow_html=True,
+        )
+
     tab_chart, tab_rank, tab_pos, tab_admin = st.tabs([
         "Historia & rynek live",
         "Ranking",
@@ -861,9 +1070,11 @@ def main():
 
             st.subheader("Łączna zmiana instrumentów od startu")
             cum = {inst: 1.0 for inst in INSTRUMENTS}
-            for week in [w for w in data["weeks"]
-                         if w.get("completed") and (w.get("prices") or {}).get("close")]:
-                chg = price_changes(week["prices"])
+            for week in [w for w in data["weeks"] if w.get("completed")]:
+                eff, _ = effective_prices(week)
+                if any(eff["open"].get(i) is None or eff["close"].get(i) is None for i in INSTRUMENTS):
+                    continue
+                chg = price_changes(eff)
                 for inst in INSTRUMENTS:
                     cum[inst] *= (1 + (chg.get(inst) or 0))
             ic = st.columns(4)
@@ -886,13 +1097,17 @@ def main():
 
             with st.expander("Tabela cen tygodniowych"):
                 price_rows = []
-                for week in [w for w in data["weeks"]
-                             if w.get("completed") and (w.get("prices") or {}).get("close")]:
-                    chg = price_changes(week["prices"])
-                    op  = (week.get("prices") or {}).get("open") or {}
-                    cl  = (week.get("prices") or {}).get("close") or {}
+                for week in [w for w in data["weeks"] if w.get("completed")]:
+                    eff, src = effective_prices(week)
+                    if any(eff["open"].get(i) is None or eff["close"].get(i) is None for i in INSTRUMENTS):
+                        continue
+                    chg = price_changes(eff)
+                    op  = eff["open"]
+                    cl  = eff["close"]
+                    is_prov = week_is_provisional(src)
                     price_rows.append({
-                        "Tydzień":         week["label"],
+                        "Tydzień":         week["label"] + (" ⚠️" if is_prov else ""),
+                        "Źródło":          "yfinance (szac.)" if is_prov else "stooq (ofic.)",
                         "SPX open":        op.get("SPX"),
                         "SPX close":       cl.get("SPX"),
                         "SPX Δ%":          f"{(chg.get('SPX') or 0)*100:+.3f}%",
