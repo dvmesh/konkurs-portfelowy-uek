@@ -18,42 +18,28 @@ st.set_page_config(
     initial_sidebar_state="collapsed",
 )
 
-if "theme" not in st.session_state:
-    st.session_state.theme = "dark"
-
-_IS_LIGHT = st.session_state.theme == "light"
-
-_PALETTE = {
-    "bg":        "#ffffff" if _IS_LIGHT else "#0d1117",
-    "panel":     "#f6f8fa" if _IS_LIGHT else "#161b22",
-    "border":    "#d0d7de" if _IS_LIGHT else "#30363d",
-    "text":      "#1f2328" if _IS_LIGHT else "#e6edf3",
-    "muted":     "#656d76" if _IS_LIGHT else "#8b949e",
-    "pending_bg":"#fff8c5" if _IS_LIGHT else "#1c1600",
-}
-
-st.markdown(f"""
+st.markdown("""
 <style>
-[data-testid="stAppViewContainer"] {{ background: {_PALETTE['bg']}; color: {_PALETTE['text']}; }}
-[data-testid="stHeader"]           {{ background: transparent; }}
-section[data-testid="stSidebar"]   {{ background: {_PALETTE['panel']}; }}
+[data-testid="stAppViewContainer"] { background: #0d1117; }
+[data-testid="stHeader"]           { background: transparent; }
+section[data-testid="stSidebar"]   { background: #161b22; }
 
-[data-testid="stMetric"] {{
-    background: {_PALETTE['panel']};
-    border: 1px solid {_PALETTE['border']};
+[data-testid="stMetric"] {
+    background: #161b22;
+    border: 1px solid #30363d;
     border-radius: 10px;
     padding: 0.6rem 1rem 0.4rem;
-}}
-[data-testid="stMetricValue"] {{ font-size: 1.4rem; color: {_PALETTE['text']}; }}
+}
+[data-testid="stMetricValue"] { font-size: 1.4rem; }
 
-.pending-box {{
-    background: {_PALETTE['pending_bg']};
+.pending-box {
+    background: #1c1600;
     border: 1px solid #d29922;
     border-radius: 8px;
     padding: 1rem 1.4rem;
     margin-bottom: 1rem;
-}}
-.live-badge {{
+}
+.live-badge {
     display: inline-block;
     background: #1a2e1a;
     border: 1px solid #3fb950;
@@ -66,44 +52,44 @@ section[data-testid="stSidebar"]   {{ background: {_PALETTE['panel']}; }}
     vertical-align: middle;
     margin-left: 8px;
     animation: pulse 2s infinite;
-}}
-@keyframes pulse {{
-    0%,100% {{ opacity:1; }}
-    50%     {{ opacity:0.5; }}
-}}
-.ticker-card {{
-    background: {_PALETTE['panel']};
-    border: 1px solid {_PALETTE['border']};
+}
+@keyframes pulse {
+    0%,100% { opacity:1; }
+    50%      { opacity:0.5; }
+}
+.ticker-card {
+    background: #161b22;
+    border: 1px solid #30363d;
     border-radius: 10px;
     padding: 0.7rem 1rem;
     text-align: center;
-}}
-.ticker-name  {{ color: {_PALETTE['muted']}; font-size: 0.78rem; font-weight:600; letter-spacing:.05em; }}
-.ticker-price {{ color: {_PALETTE['text']}; font-size: 1.3rem; font-weight: 700; margin: 2px 0; }}
-.ticker-green {{ color: #3fb950; font-size: 0.88rem; font-weight: 600; }}
-.ticker-red   {{ color: #f85149; font-size: 0.88rem; font-weight: 600; }}
-.ticker-gray  {{ color: {_PALETTE['muted']}; font-size: 0.88rem; }}
-thead tr th {{ background: {_PALETTE['panel']} !important; }}
-.stTabs [data-baseweb="tab"] {{ font-size: 0.95rem; font-weight: 600; }}
+}
+.ticker-name  { color: #8b949e; font-size: 0.78rem; font-weight:600; letter-spacing:.05em; }
+.ticker-price { color: #e6edf3; font-size: 1.3rem; font-weight: 700; margin: 2px 0; }
+.ticker-green { color: #3fb950; font-size: 0.88rem; font-weight: 600; }
+.ticker-red   { color: #f85149; font-size: 0.88rem; font-weight: 600; }
+.ticker-gray  { color: #8b949e; font-size: 0.88rem; }
+thead tr th { background: #161b22 !important; }
+.stTabs [data-baseweb="tab"] { font-size: 0.95rem; font-weight: 600; }
 
 /* --- MOBILE (≤ 768px) --- */
-@media (max-width: 768px) {{
-    h1 {{ font-size: 1.35rem !important; line-height: 1.2 !important; }}
-    h2 {{ font-size: 1.1rem !important; }}
-    h3 {{ font-size: 1rem !important; }}
-    [data-testid="stMetricValue"] {{ font-size: 1rem !important; }}
-    [data-testid="stMetricLabel"] {{ font-size: 0.72rem !important; }}
-    .stTabs [data-baseweb="tab"] {{
+@media (max-width: 768px) {
+    h1 { font-size: 1.35rem !important; line-height: 1.2 !important; }
+    h2 { font-size: 1.1rem !important; }
+    h3 { font-size: 1rem !important; }
+    [data-testid="stMetricValue"] { font-size: 1rem !important; }
+    [data-testid="stMetricLabel"] { font-size: 0.72rem !important; }
+    .stTabs [data-baseweb="tab"] {
         font-size: 0.75rem !important;
         padding: 0.35rem 0.5rem !important;
-    }}
-    .ticker-card  {{ padding: 0.35rem 0.4rem !important; }}
-    .ticker-name  {{ font-size: 0.62rem !important; }}
-    .ticker-price {{ font-size: 0.95rem !important; }}
-    .ticker-green, .ticker-red, .ticker-gray {{ font-size: 0.7rem !important; }}
-    .pending-box {{ padding: 0.6rem 0.8rem !important; font-size: 0.85rem !important; }}
-    .block-container {{ padding-top: 1rem !important; padding-bottom: 1rem !important; }}
-}}
+    }
+    .ticker-card  { padding: 0.35rem 0.4rem !important; }
+    .ticker-name  { font-size: 0.62rem !important; }
+    .ticker-price { font-size: 0.95rem !important; }
+    .ticker-green, .ticker-red, .ticker-gray { font-size: 0.7rem !important; }
+    .pending-box { padding: 0.6rem 0.8rem !important; font-size: 0.85rem !important; }
+    .block-container { padding-top: 1rem !important; padding-bottom: 1rem !important; }
+}
 </style>
 """, unsafe_allow_html=True)
 
@@ -1060,7 +1046,7 @@ def show_group_detail_tab(data, hist, bench, labels, groups_meta):
                               mode="lines+markers", marker=dict(size=8)))
     fig.add_hline(y=100, line_dash="dot", line_color="rgba(255,255,255,0.12)")
     fig.update_layout(
-        template="plotly_dark" if st.session_state.get("theme") != "light" else "plotly_white",
+        template="plotly_dark",
         paper_bgcolor="rgba(0,0,0,0)", plot_bgcolor="rgba(0,0,0,0)",
         height=360, margin=dict(l=40, r=20, t=10, b=30),
         legend=dict(orientation="h", y=-0.2),
@@ -1508,35 +1494,12 @@ def main():
         elif data.get("weeks"):
             st.markdown(f"**Ostatni zamknięty:** {data['weeks'][-1]['label']}")
     with scol:
-        theme_btn = "☀️ Jasny" if st.session_state.theme == "dark" else "🌙 Ciemny"
-        c_bell, c_theme = st.columns(2)
-        with c_bell:
-            if st.button("🔔", help="Wall Street bell", key="bell_btn"):
-                st.markdown("""
-<audio autoplay>
-  <source src="https://www.myinstants.com/media/sounds/bell-ringing-04.mp3" type="audio/mpeg">
-</audio>""", unsafe_allow_html=True)
-        with c_theme:
-            if st.button(theme_btn, key="theme_btn"):
-                st.session_state.theme = "light" if st.session_state.theme == "dark" else "dark"
-                st.rerun()
         st.markdown(
-            f"<div style='text-align:right;color:#586069;font-size:0.78rem'>"
-            f"Grup: {len(groups_meta)} · Tygodni: {n_done} · Start: 100 jp"
-            f"</div>",
+            f"<div style='text-align:right;color:#586069;font-size:0.82rem;"
+            f"padding-top:1.8rem'>Grup: {len(groups_meta)} · Tygodni: {n_done}"
+            f"<br>Kapitał start: 100 jp</div>",
             unsafe_allow_html=True,
         )
-
-    # --- confetti przy zmianie lidera ---
-    if n_done >= 1:
-        final      = {g: v[-1] for g, v in hist.items()}
-        current_leader = max(final, key=final.get)
-        prev_leader    = st.session_state.get("prev_leader")
-        if prev_leader and prev_leader != current_leader:
-            st.balloons()
-            st.success(f"🎉 Nowy lider: **{current_leader}**! "
-                       f"(poprzedni: {prev_leader})")
-        st.session_state["prev_leader"] = current_leader
 
     if week_opens and HAS_YF:
         st.markdown("")
