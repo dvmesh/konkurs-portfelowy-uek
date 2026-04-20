@@ -72,23 +72,109 @@ section[data-testid="stSidebar"]   { background: #161b22; }
 thead tr th { background: #161b22 !important; }
 .stTabs [data-baseweb="tab"] { font-size: 0.95rem; font-weight: 600; }
 
-/* --- MOBILE (≤ 768px) --- */
+.title-short { display: none; }
+.title-full  { display: inline; }
+
+/* ========== MOBILE (≤ 768px) ========== */
 @media (max-width: 768px) {
-    h1 { font-size: 1.35rem !important; line-height: 1.2 !important; }
-    h2 { font-size: 1.1rem !important; }
-    h3 { font-size: 1rem !important; }
-    [data-testid="stMetricValue"] { font-size: 1rem !important; }
-    [data-testid="stMetricLabel"] { font-size: 0.72rem !important; }
-    .stTabs [data-baseweb="tab"] {
-        font-size: 0.75rem !important;
-        padding: 0.35rem 0.5rem !important;
+    /* kontener */
+    .block-container {
+        padding: 0.5rem !important;
+        max-width: 100% !important;
     }
-    .ticker-card  { padding: 0.35rem 0.4rem !important; }
-    .ticker-name  { font-size: 0.62rem !important; }
-    .ticker-price { font-size: 0.95rem !important; }
-    .ticker-green, .ticker-red, .ticker-gray { font-size: 0.7rem !important; }
-    .pending-box { padding: 0.6rem 0.8rem !important; font-size: 0.85rem !important; }
-    .block-container { padding-top: 1rem !important; padding-bottom: 1rem !important; }
+
+    /* tytuł: krótka wersja */
+    .title-short { display: inline; }
+    .title-full  { display: none; }
+
+    /* typografia */
+    h1 { font-size: 1.25rem !important; line-height: 1.15 !important; margin-bottom: 0 !important; }
+    h2 { font-size: 1rem !important; }
+    h3 { font-size: 0.9rem !important; }
+
+    /* kolumny: 4-col/3-col → 2×N, 2-col zostają 2-col */
+    [data-testid="stHorizontalBlock"] {
+        flex-wrap: wrap !important;
+        gap: 0.35rem !important;
+    }
+    [data-testid="stHorizontalBlock"] > [data-testid="stColumn"] {
+        flex: 0 1 calc(50% - 0.2rem) !important;
+        min-width: calc(50% - 0.2rem) !important;
+        width: calc(50% - 0.2rem) !important;
+    }
+
+    /* metryki */
+    [data-testid="stMetric"] {
+        padding: 0.4rem 0.55rem 0.3rem !important;
+    }
+    [data-testid="stMetricValue"] { font-size: 0.95rem !important; }
+    [data-testid="stMetricLabel"] { font-size: 0.68rem !important; }
+    [data-testid="stMetricDelta"] { font-size: 0.7rem !important; }
+
+    /* tabs: scroll poziomy, bez zawijania */
+    .stTabs [data-baseweb="tab-list"] {
+        overflow-x: auto !important;
+        flex-wrap: nowrap !important;
+        scrollbar-width: thin !important;
+    }
+    .stTabs [data-baseweb="tab"] {
+        font-size: 0.72rem !important;
+        padding: 0.3rem 0.5rem !important;
+        white-space: nowrap !important;
+        min-width: auto !important;
+    }
+
+    /* ticker cards: kompakt + zawsze 2×2 */
+    .ticker-card  { padding: 0.3rem 0.35rem !important; }
+    .ticker-name  { font-size: 0.58rem !important; }
+    .ticker-price { font-size: 0.88rem !important; }
+    .ticker-green, .ticker-red, .ticker-gray { font-size: 0.62rem !important; }
+
+    /* pending/info box */
+    .pending-box {
+        padding: 0.5rem 0.7rem !important;
+        font-size: 0.8rem !important;
+    }
+
+    /* tabele: scroll poziomy */
+    [data-testid="stDataFrame"], [data-testid="stDataEditor"] {
+        overflow-x: auto !important;
+    }
+
+    /* expander */
+    .streamlit-expanderHeader, [data-testid="stExpander"] summary {
+        font-size: 0.85rem !important;
+    }
+
+    /* radio/multiselect */
+    [data-baseweb="radio"] label { font-size: 0.78rem !important; }
+    [data-baseweb="tag"] { font-size: 0.72rem !important; }
+
+    /* mniejsze przyciski */
+    .stButton > button, .stDownloadButton > button {
+        font-size: 0.82rem !important;
+        padding: 0.35rem 0.7rem !important;
+    }
+
+    /* number_input / text_input kompakt */
+    .stNumberInput input, .stTextInput input, .stDateInput input {
+        font-size: 0.85rem !important;
+        padding: 0.3rem 0.5rem !important;
+    }
+}
+
+/* ========== BARDZO WĄSKO (≤ 420px) ========== */
+@media (max-width: 420px) {
+    /* header (tytuł + status) stackuje się, reszta wieloelementowa zostaje 2×N */
+    [data-testid="stHorizontalBlock"] > [data-testid="stColumn"]:only-of-type,
+    [data-testid="stHorizontalBlock"]:has(> [data-testid="stColumn"]:nth-child(2):last-child) > [data-testid="stColumn"] {
+        flex: 0 1 100% !important;
+        min-width: 100% !important;
+        width: 100% !important;
+    }
+    h1 { font-size: 1.1rem !important; }
+    [data-testid="stMetricValue"] { font-size: 0.85rem !important; }
+    .ticker-price { font-size: 0.8rem !important; }
 }
 </style>
 """, unsafe_allow_html=True)
@@ -706,15 +792,15 @@ def build_equity_chart(hist, bench, labels, groups_meta,
         plot_bgcolor="rgba(13,17,23,0.6)",
         font=dict(family="Inter, sans-serif", size=12, color="#c9d1d9"),
         legend=dict(
-            orientation="h", y=-0.18, x=0, xanchor="left",
+            orientation="h", y=-0.22, x=0, xanchor="left",
             bgcolor="rgba(22,27,34,0.9)",
-            bordercolor="#30363d", borderwidth=1, font=dict(size=11),
+            bordercolor="#30363d", borderwidth=1, font=dict(size=10),
         ),
         xaxis=dict(gridcolor="#21262d", linecolor="#30363d"),
         yaxis=dict(gridcolor="#21262d", linecolor="#30363d",
                    title="Wartość portfela (j.p.)", tickformat=".2f"),
-        hovermode="x unified", height=460,
-        margin=dict(l=60, r=30, t=20, b=100),
+        hovermode="x unified", height=420, autosize=True,
+        margin=dict(l=45, r=15, t=15, b=90),
     )
     return fig
 
@@ -842,7 +928,7 @@ def live_ticker_bar(week_opens: dict):
         return
     prices = fetch_live_prices()
     ts     = datetime.now().strftime("%H:%M:%S")
-    cols   = st.columns([1, 1, 1, 1, 0.5])
+    cols   = st.columns(4)
     for i, inst in enumerate(INSTRUMENTS):
         lp = prices.get(inst)
         op = week_opens.get(inst)
@@ -856,21 +942,16 @@ def live_ticker_bar(week_opens: dict):
 <div class="ticker-card">
   <div class="ticker-name">{INST_SHORT[inst]}</div>
   <div class="ticker-price">{lp:.5g}</div>
-  <div class="{cls}">{arrow} {sign}{chg_pct:.3f}% vs otwarcie</div>
+  <div class="{cls}">{arrow} {sign}{chg_pct:.3f}%</div>
 </div>""", unsafe_allow_html=True)
             else:
                 st.markdown(f"""
 <div class="ticker-card">
   <div class="ticker-name">{INST_SHORT[inst]}</div>
   <div class="ticker-price">—</div>
-  <div class="ticker-gray">brak danych</div>
+  <div class="ticker-gray">brak</div>
 </div>""", unsafe_allow_html=True)
-    with cols[4]:
-        st.markdown(
-            f"<div style='color:#586069;font-size:0.75rem;padding-top:0.9rem;"
-            f"text-align:right'>⏱ {ts}<br>odśw. co 60s</div>",
-            unsafe_allow_html=True,
-        )
+    st.caption(f"⏱ {ts}  ·  odśw. co 60s  ·  zmiana vs otwarcie tygodnia")
 
 
 @st.fragment(run_every=60)
@@ -1484,7 +1565,10 @@ def main():
     with hcol:
         live_html = '<span class="live-badge">LIVE</span>' if week_is_live else ""
         st.markdown(
-            f"<h1 style='margin-bottom:0'>Konkurs Portfelowy | Rynki Finansowe | UEK | 2026 {live_html}</h1>",
+            f"<h1 style='margin-bottom:0'>"
+            f"<span class='title-full'>Konkurs Portfelowy | Rynki Finansowe | UEK | 2026</span>"
+            f"<span class='title-short'>Konkurs UEK · 2026</span> "
+            f"{live_html}</h1>",
             unsafe_allow_html=True,
         )
         if pending.get("waiting_for_positions") and not open_wks:
@@ -1495,9 +1579,9 @@ def main():
             st.markdown(f"**Ostatni zamknięty:** {data['weeks'][-1]['label']}")
     with scol:
         st.markdown(
-            f"<div style='text-align:right;color:#586069;font-size:0.82rem;"
-            f"padding-top:1.8rem'>Grup: {len(groups_meta)} · Tygodni: {n_done}"
-            f"<br>Kapitał start: 100 jp</div>",
+            f"<div style='text-align:right;color:#8b949e;font-size:0.78rem;"
+            f"padding-top:0.6rem'>Grup: {len(groups_meta)} · Tygodni: {n_done}"
+            f"<br>Start: 100 jp</div>",
             unsafe_allow_html=True,
         )
 
