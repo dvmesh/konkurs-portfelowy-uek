@@ -29,6 +29,16 @@ def _flatten_yf(df) -> pd.DataFrame:
     return df
 
 
+def _is_sane_price(v) -> bool:
+    """yfinance czasem zwraca 0.0, NaN, ujemne (split-adjust). Filtruj."""
+    import math
+    try:
+        f = float(v)
+    except (TypeError, ValueError):
+        return False
+    return math.isfinite(f) and f > 0
+
+
 @st.cache_data(ttl=55, show_spinner=False)
 def fetch_live_prices() -> dict:
     """Batch live prices przez yf.Tickers (jedna sesja HTTP dla 4 tickerów)."""
@@ -94,8 +104,18 @@ def fetch_weekly_bounds_yf(inst: str, week_start_iso: str) -> Tuple[Optional[flo
         open_px = None
         close_px = None
         if df is not None and not df.empty:
-            open_px = float(df["Open"].iloc[0])
-            close_px = float(df["Close"].iloc[-1])
+            try:
+                v = float(df["Open"].iloc[0])
+                if _is_sane_price(v):
+                    open_px = v
+            except (TypeError, ValueError):
+                pass
+            try:
+                v = float(df["Close"].iloc[-1])
+                if _is_sane_price(v):
+                    close_px = v
+            except (TypeError, ValueError):
+                pass
 
         if open_px is None:
             back = yf.download(
@@ -224,10 +244,15 @@ def week_is_provisional(sources: dict) -> bool:
 def price_changes(prices: dict) -> dict:
     op = prices.get("open") or {}
     cl = prices.get("close") or {}
-    return {
-        inst: (cl[inst] / op[inst] - 1) if (op.get(inst) and cl.get(inst)) else None
-        for inst in INSTRUMENTS
-    }
+    out = {}
+    for inst in INSTRUMENTS:
+        o = op.get(inst)
+        c = cl.get(inst)
+        if _is_sane_price(o) and _is_sane_price(c):
+            out[inst] = c / o - 1
+        else:
+            out[inst] = None
+    return out
 
 
 def live_changes(week_opens: dict, live_prices: dict) -> dict:

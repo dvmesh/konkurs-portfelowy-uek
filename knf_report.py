@@ -26,6 +26,17 @@ from datetime import datetime
 from typing import Iterable, Optional
 
 from openpyxl import Workbook
+from openpyxl.chart import (
+    BarChart, BarChart3D, LineChart, PieChart,
+    Reference, ScatterChart, Series,
+)
+from openpyxl.chart.label import DataLabelList
+from openpyxl.chart.layout import Layout, ManualLayout
+from openpyxl.chart.marker import Marker
+from openpyxl.chart.shapes import GraphicalProperties
+from openpyxl.chart.text import RichText
+from openpyxl.chart.trendline import Trendline
+from openpyxl.drawing.line import LineProperties
 from openpyxl.styles import Alignment, Border, Font, PatternFill, Side
 from openpyxl.utils import get_column_letter
 from openpyxl.formatting.rule import ColorScaleRule, CellIsRule
@@ -185,8 +196,8 @@ def _sheet_positions_long(wb: Workbook, data: dict) -> None:
     ws = wb.create_sheet("3. Pozycje (long-form)")
     hdr = [
         "Tydzień", "Data startu", "Grupa", "Rok", "Instrument",
-        "Kierunek", "Kwota (j.p.)", "|Kwota|", "% portfela start",
-        "|Sum| tygodnia", "Deadline", "Naruszenia",
+        "Kierunek", "Kwota (j.p.)", "|Kwota|", "% kapitału grupy",
+        "Kapitał na start tyg.", "|Sum| tygodnia", "Naruszenia",
     ]
     for col, h in enumerate(hdr, start=1):
         ws.cell(row=1, column=col, value=h)
@@ -195,17 +206,20 @@ def _sheet_positions_long(wb: Workbook, data: dict) -> None:
     groups = data.get("groups") or {}
     hist, _, _, _ = build_history(data)
     row = 2
-    weeks_iter = list(data.get("weeks", []))
-    for w_idx, week in enumerate(weeks_iter):
-        if not week.get("completed") and not week.get("positions"):
-            continue
+
+    # iter_completed_weeks daje "completed" tygodnie po kolei → indeks pasuje do hist[g][i]
+    completed_list = [w for w in data.get("weeks", []) if w.get("completed")]
+    for w_idx, week in enumerate(completed_list):
         positions = week.get("positions") or {}
         for g, pos in positions.items():
             if g not in groups:
                 continue
-            errs = validate_positions(pos)
+            # kapitał = wartość portfela NA POCZĄTKU tygodnia = hist[g][w_idx]
+            # (hist[g][0]=start 100, hist[g][1]=koniec w0 = start w1)
+            vals = hist.get(g, [PORTFOLIO_START_VALUE])
+            capital = vals[w_idx] if w_idx < len(vals) else PORTFOLIO_START_VALUE
+            errs = validate_positions(pos, capital=capital)
             abs_sum = sum(abs(pos.get(i) or 0) for i in INSTRUMENTS)
-            start_val = hist.get(g, [PORTFOLIO_START_VALUE])[w_idx] if w_idx < len(hist.get(g, [])) else PORTFOLIO_START_VALUE
             for inst in INSTRUMENTS:
                 v = pos.get(inst) or 0
                 direction = "—" if v == 0 else ("LONG" if v > 0 else "SHORT")
@@ -217,9 +231,9 @@ def _sheet_positions_long(wb: Workbook, data: dict) -> None:
                 ws.cell(row=row, column=6, value=direction)
                 _format_num(ws.cell(row=row, column=7), float(v), 2)
                 _format_num(ws.cell(row=row, column=8), abs(float(v)), 2)
-                _format_pct(ws.cell(row=row, column=9), abs(float(v)) / start_val if start_val else 0)
-                _format_num(ws.cell(row=row, column=10), abs_sum, 2)
-                ws.cell(row=row, column=11, value="niedziela przed startem")
+                _format_pct(ws.cell(row=row, column=9), abs(float(v)) / capital if capital else 0)
+                _format_num(ws.cell(row=row, column=10), capital, 3)
+                _format_num(ws.cell(row=row, column=11), abs_sum, 2)
                 ws.cell(row=row, column=12, value="; ".join(errs) if errs else "OK")
                 for c in ws[row]:
                     c.border = BORDER
@@ -588,19 +602,24 @@ def _sheet_audit(wb: Workbook, audit: list) -> None:
 def _sheet_violations(wb: Workbook, data: dict) -> None:
     ws = wb.create_sheet("12. Naruszenia regulaminu")
     hdr = ["Tydzień", "Data startu", "Grupa", "Rok",
-           "|Sum| pozycji", "Brak pozycji?", "Lista naruszeń"]
+           "Kapitał na start", "|Sum| pozycji", "Nadalokacja",
+           "Brak pozycji?", "Lista naruszeń"]
     for col, h in enumerate(hdr, start=1):
         ws.cell(row=1, column=col, value=h)
     _set_header(ws[1])
 
     groups = data.get("groups") or {}
+    hist, _, _, _ = build_history(data)
+    completed_list = [w for w in data.get("weeks", []) if w.get("completed")]
     row = 2
     found = 0
-    for week in data.get("weeks", []):
+    for w_idx, week in enumerate(completed_list):
         positions = week.get("positions") or {}
         for g in groups:
             pos = positions.get(g) or {}
-            errs = validate_positions(pos)
+            vals = hist.get(g, [PORTFOLIO_START_VALUE])
+            capital = vals[w_idx] if w_idx < len(vals) else PORTFOLIO_START_VALUE
+            errs = validate_positions(pos, capital=capital)
             abs_sum = sum(abs(pos.get(i) or 0) for i in INSTRUMENTS)
             empty = not pos or all((pos.get(i) or 0) == 0 for i in INSTRUMENTS)
             if not errs and not empty:
@@ -610,25 +629,250 @@ def _sheet_violations(wb: Workbook, data: dict) -> None:
             ws.cell(row=row, column=2, value=week.get("week_start"))
             ws.cell(row=row, column=3, value=g)
             ws.cell(row=row, column=4, value=groups[g].get("year"))
-            _format_num(ws.cell(row=row, column=5), abs_sum, 2)
-            ws.cell(row=row, column=6, value="TAK" if empty else "nie")
-            ws.cell(row=row, column=7, value="; ".join(errs) if errs else
+            _format_num(ws.cell(row=row, column=5), capital, 3)
+            _format_num(ws.cell(row=row, column=6), abs_sum, 2)
+            over = abs_sum - capital
+            _format_num(ws.cell(row=row, column=7), over if over > 0 else 0, 2)
+            ws.cell(row=row, column=8, value="TAK" if empty else "nie")
+            ws.cell(row=row, column=9, value="; ".join(errs) if errs else
                     ("brak zgłoszonych pozycji" if empty else ""))
             for c in ws[row]:
                 c.border = BORDER
-                c.alignment = CENTER if c.column != 7 else LEFT
+                c.alignment = CENTER if c.column != 9 else LEFT
             if errs:
+                ws.cell(row=row, column=9).fill = VIOLATION_FILL
                 ws.cell(row=row, column=7).fill = VIOLATION_FILL
             elif empty:
-                ws.cell(row=row, column=6).fill = WARN_FILL
+                ws.cell(row=row, column=8).fill = WARN_FILL
             row += 1
 
     if found == 0:
         ws.cell(row=2, column=1, value="Brak naruszeń regulaminu - wszystkie grupy w normie.")
         ws.cell(row=2, column=1).fill = OK_FILL
-        ws.merge_cells(start_row=2, start_column=1, end_row=2, end_column=7)
+        ws.merge_cells(start_row=2, start_column=1, end_row=2, end_column=9)
     ws.freeze_panes = "A2"
     _autosize(ws, min_width=10, max_width=50)
+
+
+def _sheet_charts(wb: Workbook, data: dict) -> None:
+    """Arkusz 14: wykresy natywne Excel (openpyxl Chart).
+
+    Wykresy wymagają arkusza z liczbami jako źródła, dlatego trzymamy je tu
+    obok wykresów (część danych w ukrytych kolumnach H+ jako data backing).
+    """
+    ws = wb.create_sheet("14. Wykresy")
+    ws.cell(row=1, column=1, value="WYKRESY ANALITYCZNE").font = Font(bold=True, size=16, color="1F4E78")
+    ws.merge_cells("A1:E1")
+    ws.cell(row=2, column=1, value=(
+        "Wszystkie wykresy generowane natywnie w Excel — dane źródłowe w "
+        "ukrytych kolumnach po prawej. Można edytować, kopiować, eksportować."
+    )).font = Font(italic=True, color="555555", size=10)
+    ws.merge_cells("A2:E2")
+
+    hist, bench, labels, _ = build_history(data)
+    groups = data.get("groups") or {}
+    sorted_groups = sorted(groups.keys(), key=lambda x: (groups[x].get("year", 0), x))
+
+    # ---------- block A: equity data (T rows × N+2 cols) ----------
+    # kolumna A: label, B: bench, C..: grupy
+    data_start_row = 5
+    ws.cell(row=data_start_row - 1, column=1, value="Tydzień")
+    ws.cell(row=data_start_row - 1, column=2, value="Benchmark")
+    for i, g in enumerate(sorted_groups):
+        ws.cell(row=data_start_row - 1, column=3 + i, value=g)
+    for i, lbl in enumerate(labels):
+        r = data_start_row + i
+        ws.cell(row=r, column=1, value=lbl)
+        ws.cell(row=r, column=2, value=bench[i])
+        for j, g in enumerate(sorted_groups):
+            vals = hist.get(g) or []
+            v = vals[i] if i < len(vals) else None
+            ws.cell(row=r, column=3 + j, value=v)
+    equity_last_row = data_start_row + len(labels) - 1
+
+    # ── Chart 1: Equity curve (line) - top 6 grup + benchmark ──
+    chart1 = LineChart()
+    chart1.title = "Equity curve - Top 6 grup + benchmark 4×25%"
+    chart1.style = 12
+    chart1.y_axis.title = "Wartość portfela (j.p.)"
+    chart1.x_axis.title = "Tydzień"
+    chart1.height = 12
+    chart1.width = 22
+    # benchmark
+    bench_ref = Reference(ws, min_col=2, min_row=data_start_row - 1,
+                          max_col=2, max_row=equity_last_row)
+    chart1.add_data(bench_ref, titles_from_data=True)
+    # wybierz top 6 grup po wartości końcowej
+    final_vals = [(g, (hist.get(g) or [0])[-1]) for g in sorted_groups]
+    final_vals.sort(key=lambda x: x[1], reverse=True)
+    top6 = [g for g, _ in final_vals[:6]]
+    for g in top6:
+        idx = sorted_groups.index(g)
+        ref = Reference(ws, min_col=3 + idx, min_row=data_start_row - 1,
+                        max_col=3 + idx, max_row=equity_last_row)
+        chart1.add_data(ref, titles_from_data=True)
+    cats = Reference(ws, min_col=1, min_row=data_start_row, max_row=equity_last_row)
+    chart1.set_categories(cats)
+    chart1.legend.position = "b"
+    ws.add_chart(chart1, "A4")
+
+    # ── Chart 2: Equity curve - WSZYSTKIE grupy (dla pełnego kontekstu) ──
+    chart2 = LineChart()
+    chart2.title = "Equity curve - wszystkie grupy (kontekst)"
+    chart2.style = 13
+    chart2.y_axis.title = "j.p."
+    chart2.x_axis.title = "Tydzień"
+    chart2.height = 12
+    chart2.width = 22
+    for i in range(len(sorted_groups)):
+        ref = Reference(ws, min_col=3 + i, min_row=data_start_row - 1,
+                        max_col=3 + i, max_row=equity_last_row)
+        chart2.add_data(ref, titles_from_data=True)
+    chart2.add_data(bench_ref, titles_from_data=True)
+    chart2.set_categories(cats)
+    chart2.legend.position = "r"
+    # mniejsza czcionka dla legendy 30 elementów
+    chart2.legend.txPr = None
+    ws.add_chart(chart2, "M4")
+
+    # ---------- block B: ranking final (na dole) ----------
+    rank_start = equity_last_row + 3
+    ws.cell(row=rank_start, column=1, value="Grupa")
+    ws.cell(row=rank_start, column=2, value="Wartość końcowa")
+    ws.cell(row=rank_start, column=3, value="ROI %")
+    ws.cell(row=rank_start, column=4, value="Sharpe")
+    ws.cell(row=rank_start, column=5, value="Volatility roczna")
+    for i, (g, fv) in enumerate(final_vals, start=1):
+        vals = hist.get(g) or []
+        ws.cell(row=rank_start + i, column=1, value=g)
+        ws.cell(row=rank_start + i, column=2, value=fv)
+        ws.cell(row=rank_start + i, column=3, value=(fv / PORTFOLIO_START_VALUE - 1) * 100)
+        sh = sharpe_ratio(vals)
+        ws.cell(row=rank_start + i, column=4, value=sh if sh is not None else 0)
+        vo = volatility_annual(vals)
+        ws.cell(row=rank_start + i, column=5, value=(vo * 100) if vo is not None else 0)
+    rank_last = rank_start + len(final_vals)
+
+    # ── Chart 3: Bar chart - ranking final ──
+    chart3 = BarChart()
+    chart3.type = "bar"
+    chart3.title = "Ranking końcowy - wartość portfela [j.p.]"
+    chart3.style = 11
+    chart3.y_axis.title = "Grupa"
+    chart3.x_axis.title = "j.p."
+    chart3.height = max(15, len(final_vals) * 0.45)
+    chart3.width = 18
+    data_ref = Reference(ws, min_col=2, min_row=rank_start,
+                         max_col=2, max_row=rank_last)
+    cats_ref = Reference(ws, min_col=1, min_row=rank_start + 1, max_row=rank_last)
+    chart3.add_data(data_ref, titles_from_data=True)
+    chart3.set_categories(cats_ref)
+    chart3.legend = None
+    ws.add_chart(chart3, f"A{rank_last + 3}")
+
+    # ── Chart 4: Scatter Sharpe vs Volatility (risk-return) ──
+    chart4 = ScatterChart()
+    chart4.title = "Risk / Return: Sharpe vs Volatility roczna"
+    chart4.style = 13
+    chart4.x_axis.title = "Volatility roczna (%)"
+    chart4.y_axis.title = "Sharpe ratio (roczny)"
+    chart4.height = 14
+    chart4.width = 18
+    x_ref = Reference(ws, min_col=5, min_row=rank_start + 1, max_row=rank_last)
+    y_ref = Reference(ws, min_col=4, min_row=rank_start + 1, max_row=rank_last)
+    series = Series(y_ref, x_ref, title="Grupy")
+    # marker styling
+    series.marker = Marker(symbol="circle", size=8)
+    series.graphicalProperties = GraphicalProperties(solidFill="4A9EFF")
+    series.graphicalProperties.line.noFill = True  # tylko punkty
+    chart4.series.append(series)
+    chart4.legend = None
+    ws.add_chart(chart4, f"M{rank_last + 3}")
+
+    # ---------- block C: benchmark percentile spread (równolegle do block A) ----------
+    spread_start = rank_last + 30  # dużo miejsca pod wykres 3
+    ws.cell(row=spread_start, column=1, value="Tydzień")
+    ws.cell(row=spread_start, column=2, value="Benchmark")
+    ws.cell(row=spread_start, column=3, value="Średnia portfeli")
+    ws.cell(row=spread_start, column=4, value="Mediana")
+    ws.cell(row=spread_start, column=5, value="P25")
+    ws.cell(row=spread_start, column=6, value="P75")
+    ws.cell(row=spread_start, column=7, value="Min")
+    ws.cell(row=spread_start, column=8, value="Max")
+    for i, lbl in enumerate(labels):
+        r = spread_start + 1 + i
+        vals = sorted(v[i] for v in hist.values()) if hist else []
+        if not vals:
+            continue
+        ws.cell(row=r, column=1, value=lbl)
+        ws.cell(row=r, column=2, value=bench[i])
+        ws.cell(row=r, column=3, value=sum(vals) / len(vals))
+        ws.cell(row=r, column=4, value=vals[len(vals) // 2])
+        ws.cell(row=r, column=5, value=vals[int(0.25 * (len(vals) - 1))])
+        ws.cell(row=r, column=6, value=vals[int(0.75 * (len(vals) - 1))])
+        ws.cell(row=r, column=7, value=vals[0])
+        ws.cell(row=r, column=8, value=vals[-1])
+    spread_last = spread_start + len(labels)
+
+    # ── Chart 5: Benchmark vs portfolio distribution ──
+    chart5 = LineChart()
+    chart5.title = "Benchmark vs rozkład portfeli (min/p25/mediana/p75/max + średnia)"
+    chart5.style = 12
+    chart5.y_axis.title = "j.p."
+    chart5.x_axis.title = "Tydzień"
+    chart5.height = 12
+    chart5.width = 22
+    for col_off in range(2, 9):  # benchmark + 6 statystyk
+        ref = Reference(ws, min_col=col_off, min_row=spread_start,
+                        max_col=col_off, max_row=spread_last)
+        chart5.add_data(ref, titles_from_data=True)
+    cats5 = Reference(ws, min_col=1, min_row=spread_start + 1, max_row=spread_last)
+    chart5.set_categories(cats5)
+    chart5.legend.position = "b"
+    ws.add_chart(chart5, f"A{spread_last + 3}")
+
+    # ---------- block D: per-instrument cumulative returns ----------
+    cum_start = spread_last + 30
+    cum = {inst: [1.0] for inst in INSTRUMENTS}
+    cum_labels = ["Start"]
+    for week, _eff, _src, chg in iter_completed_weeks(data):
+        cum_labels.append(week.get("label"))
+        for inst in INSTRUMENTS:
+            cum[inst].append(cum[inst][-1] * (1 + (chg.get(inst) or 0)))
+    ws.cell(row=cum_start, column=1, value="Tydzień")
+    for j, inst in enumerate(INSTRUMENTS):
+        ws.cell(row=cum_start, column=2 + j, value=INST_LABELS[inst])
+    for i, lbl in enumerate(cum_labels):
+        r = cum_start + 1 + i
+        ws.cell(row=r, column=1, value=lbl)
+        for j, inst in enumerate(INSTRUMENTS):
+            ws.cell(row=r, column=2 + j, value=cum[inst][i])
+    cum_last = cum_start + len(cum_labels)
+
+    # ── Chart 6: Per-instrument cumulative return ──
+    chart6 = LineChart()
+    chart6.title = "Skumulowany zwrot per instrument (start = 1.0)"
+    chart6.style = 11
+    chart6.y_axis.title = "Indeks"
+    chart6.x_axis.title = "Tydzień"
+    chart6.height = 12
+    chart6.width = 22
+    for j in range(len(INSTRUMENTS)):
+        ref = Reference(ws, min_col=2 + j, min_row=cum_start,
+                        max_col=2 + j, max_row=cum_last)
+        chart6.add_data(ref, titles_from_data=True)
+    cats6 = Reference(ws, min_col=1, min_row=cum_start + 1, max_row=cum_last)
+    chart6.set_categories(cats6)
+    chart6.legend.position = "b"
+    ws.add_chart(chart6, f"M{spread_last + 3}")
+
+    # ukryj kolumny z danymi (od H w prawo dane są tylko backing)
+    for col_letter in ["A", "B", "C", "D", "E", "F", "G", "H"]:
+        ws.column_dimensions[col_letter].width = 12
+
+    # navigation helper
+    ws.cell(row=3, column=1, value="📊 Wykresy: equity (top6 / wszystkie), ranking, risk/return, benchmark vs rozkład, instrumenty.").font = Font(italic=True, size=9, color="666666")
+    ws.merge_cells("A3:Y3")
 
 
 def _sheet_benchmark(wb: Workbook, data: dict) -> None:
@@ -683,6 +927,7 @@ def build_knf_workbook(data: dict, audit: Optional[Iterable[dict]] = None) -> by
     _sheet_audit(wb, audit_list)
     _sheet_violations(wb, data)
     _sheet_benchmark(wb, data)
+    _sheet_charts(wb, data)
 
     buf = io.BytesIO()
     wb.save(buf)

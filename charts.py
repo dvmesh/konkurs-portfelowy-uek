@@ -134,11 +134,15 @@ def build_equity_chart(hist, bench, labels, groups_meta,
             bgcolor="rgba(22,27,34,0.9)",
             bordercolor="#30363d", borderwidth=1, font=dict(size=10),
         ),
-        xaxis=dict(gridcolor="#21262d", linecolor="#30363d"),
+        xaxis=dict(gridcolor="#21262d", linecolor="#30363d",
+                   title="Tydzień konkursu"),
         yaxis=dict(gridcolor="#21262d", linecolor="#30363d",
                    title="Wartość portfela (j.p.)", tickformat=".2f"),
         hovermode="x unified", height=420, autosize=True,
         margin=dict(l=45, r=15, t=15, b=90),
+        # uirevision: stała wartość → Plotly trzyma user state (zoom, ukryte
+        # traces) przy rerunach. Zmiana wartości → reset.
+        uirevision=f"equity_{year_filter}_{'hourly' if hourly else 'weekly'}",
     )
     return fig
 
@@ -205,6 +209,7 @@ def build_candlestick_chart(week_opens: dict, live_prices: dict):
         font=dict(family="Inter, sans-serif", size=11, color="#c9d1d9"),
         height=660,
         margin=dict(l=60, r=60, t=55, b=40),
+        uirevision="candlestick_v1",
     )
     return fig
 

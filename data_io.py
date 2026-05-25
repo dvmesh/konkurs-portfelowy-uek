@@ -122,6 +122,7 @@ def save_data(data: dict, sha: Optional[str]) -> Tuple[bool, str]:
             r = requests.put(url, headers=_gh_headers(), json=body, timeout=15)
             if r.ok:
                 load_data.clear()
+                _invalidate_derived_caches()
                 _append_audit("save_github", {"sha_old": sha, "bytes": len(payload)})
                 return True, "Zapisano do GitHub ✓"
             if r.status_code == 409:
@@ -140,11 +141,22 @@ def save_data(data: dict, sha: Optional[str]) -> Tuple[bool, str]:
     try:
         _atomic_local_write(payload)
         load_data.clear()
+        _invalidate_derived_caches()
         _append_audit("save_local", {"bytes": len(payload)})
         return True, "Zapisano lokalnie ✓"
     except Exception as exc:
         logger.exception("local atomic write failed: %s", exc)
         return False, "Błąd zapisu lokalnego. Szczegóły w logach."
+
+
+def _invalidate_derived_caches() -> None:
+    """Po save_data czyść cache build_history / build_hourly_history (memory leak fix)."""
+    try:
+        from history import _build_history_cached, _build_hourly_history_cached
+        _build_history_cached.clear()
+        _build_hourly_history_cached.clear()
+    except Exception:
+        logger.exception("derived cache invalidation failed")
 
 
 def verify_admin(pwd: str) -> bool:

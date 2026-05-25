@@ -21,10 +21,7 @@ import pandas as pd
 import plotly.graph_objects as go
 import streamlit as st
 
-from config import (
-    GROUP_ORDER, INSTRUMENTS, INST_LABELS, INST_SHORT,
-    MAX_PORTFOLIO_ALLOCATION, ALLOCATION_TOLERANCE,
-)
+from config import GROUP_ORDER, INSTRUMENTS, INST_LABELS, INST_SHORT
 from styles import inject_css
 from data_io import (
     admin_login, admin_logout, admin_session_active,
@@ -217,11 +214,18 @@ def live_ranking_fragment(hist, bench, groups_meta,
 @st.fragment(run_every=300)
 def candlestick_fragment(week_opens: dict) -> None:
     if not HAS_YF:
-        st.info("Zainstaluj `yfinance` aby zobaczyć wykresy live.")
+        st.info(
+            "📡 Dane live chwilowo niedostępne. Wykresy świecowe wrócą po "
+            "przywróceniu źródła Yahoo Finance — rozliczenie tygodnia będzie "
+            "z cen oficjalnych ze stooq.pl niezależnie od dostępności live."
+        )
         return
     prices = fetch_live_prices()
     fig = build_candlestick_chart(week_opens, prices)
-    st.plotly_chart(fig, use_container_width=True)
+    st.plotly_chart(
+        fig, use_container_width=True,
+        config={"displayModeBar": False, "scrollZoom": False},
+    )
     st.caption(
         "⏱ Dane godzinowe z Yahoo Finance (odśw. co 5 min). "
         "Ceny live orientacyjne – rozliczenie wg stooq.pl."
@@ -440,7 +444,13 @@ def _admin_open_week(data, sha) -> None:
         return
 
     today = date.today()
-    default_monday = today + timedelta(days=(7 - today.weekday()) % 7)
+    # Najbliższy nadchodzący poniedziałek. Jeśli dziś jest poniedziałek,
+    # zaproponuj następny tydzień (+7), nie dzisiaj (regulamin: pozycje
+    # przyjmowane w niedzielę PRZED startem).
+    days_to_mon = (7 - today.weekday()) % 7
+    if days_to_mon == 0:
+        days_to_mon = 7
+    default_monday = today + timedelta(days=days_to_mon)
 
     if today.weekday() != 6:  # nie niedziela
         st.warning(
@@ -510,6 +520,10 @@ def _admin_positions(data, sha) -> None:
     groups_meta = data.get("groups", {})
     existing = dict(week.get("positions") or {})
 
+    # kapitał na start aktywnego tygodnia = ostatnia wartość equity dla każdej grupy
+    hist, _b, _l, _p = build_history(data)
+    capital_per_group = {g: (hist.get(g, [100.0])[-1]) for g in groups_meta}
+
     # P0: deadline enforcement - nie można edytować po starcie tygodnia
     today = date.today()
     try:
@@ -531,8 +545,11 @@ def _admin_positions(data, sha) -> None:
             f"Tydzień startuje {wstart.strftime('%d.%m.%Y')} — masz jeszcze czas."
         )
 
-    st.markdown(f"Tydzień: **{html.escape(week['label'])}** · "
-                "**Sprawdź, edytuj, zapisz.**")
+    st.markdown(
+        f"Tydzień: **{html.escape(week['label'])}** · "
+        "Limit alokacji = kapitał grupy z poprzedniego tygodnia (nie 100 j.p.). "
+        "Sprawdź, edytuj, zapisz."
+    )
 
     rows = []
     for g in GROUP_ORDER:
@@ -541,50 +558,60 @@ def _admin_positions(data, sha) -> None:
         meta = groups_meta[g]
         prev = existing.get(g) or {}
         alloc = sum(abs(prev.get(i) or 0) for i in INSTRUMENTS)
+        cap = capital_per_group.get(g, 100.0)
         rows.append({
-            "Grupa":   g,
-            "Rok":     meta.get("year", 1),
-            "Skład":   ", ".join(meta.get("members", [])),
-            "SPX":     float(prev.get("SPX") or 0),
-            "Złoto":   float(prev.get("XAUUSD") or 0),
-            "Bond":    float(prev.get("BOND10Y") or 0),
-            "EUR/USD": float(prev.get("EURUSD") or 0),
-            "|alok.|": alloc,
+            "Grupa":      g,
+            "Rok":        meta.get("year", 1),
+            "Skład":      ", ".join(meta.get("members", [])),
+            "SPX":        float(prev.get("SPX") or 0),
+            "Złoto":      float(prev.get("XAUUSD") or 0),
+            "Bond":       float(prev.get("BOND10Y") or 0),
+            "EUR/USD":    float(prev.get("EURUSD") or 0),
+            "|alok.|":    alloc,
+            "Kapitał":    round(cap, 3),
+            "Margines":   round(cap - alloc, 3),
         })
     df = pd.DataFrame(rows)
+
+    # Liberalny single-position limit: pozycja może być długa do kapitału grupy.
+    # Maksymalny rozsądny limit (sanity): 2× najwyższego kapitału w stawce.
+    max_single = max(200.0, max(capital_per_group.values(), default=100.0) * 1.5)
 
     edited = st.data_editor(
         df, use_container_width=True, hide_index=True,
         num_rows="fixed",
-        disabled=["Grupa", "Rok", "Skład", "|alok.|"]
+        disabled=["Grupa", "Rok", "Skład", "|alok.|", "Kapitał", "Margines"]
                  if not week_started else df.columns.tolist(),
         column_config={
             "Grupa":   st.column_config.TextColumn("Grupa", width=90),
             "Rok":     st.column_config.NumberColumn("Rok", width=60, format="%d"),
             "Skład":   st.column_config.TextColumn("Skład", width=280),
             "SPX":     st.column_config.NumberColumn(
-                "SPX", min_value=-MAX_PORTFOLIO_ALLOCATION,
-                max_value=MAX_PORTFOLIO_ALLOCATION, format="%.2f"),
+                "SPX", min_value=-max_single, max_value=max_single, format="%.2f"),
             "Złoto":   st.column_config.NumberColumn(
-                "Złoto", min_value=-MAX_PORTFOLIO_ALLOCATION,
-                max_value=MAX_PORTFOLIO_ALLOCATION, format="%.2f"),
+                "Złoto", min_value=-max_single, max_value=max_single, format="%.2f"),
             "Bond":    st.column_config.NumberColumn(
-                "Bond", min_value=-MAX_PORTFOLIO_ALLOCATION,
-                max_value=MAX_PORTFOLIO_ALLOCATION, format="%.2f"),
+                "Bond", min_value=-max_single, max_value=max_single, format="%.2f"),
             "EUR/USD": st.column_config.NumberColumn(
-                "EUR/USD", min_value=-MAX_PORTFOLIO_ALLOCATION,
-                max_value=MAX_PORTFOLIO_ALLOCATION, format="%.2f"),
+                "EUR/USD", min_value=-max_single, max_value=max_single, format="%.2f"),
             "|alok.|": st.column_config.NumberColumn(
                 "|alok.|", format="%.2f",
-                help="Suma wartości bezwzględnych pozycji"),
+                help="Suma |pozycji|. Musi być ≤ Kapitał."),
+            "Kapitał":  st.column_config.NumberColumn(
+                "Kapitał", format="%.3f", width=90,
+                help="Wartość portfela grupy po poprzednim tygodniu — to jest limit alokacji."),
+            "Margines": st.column_config.NumberColumn(
+                "Margines", format="%+.3f", width=90,
+                help="Wolne środki = Kapitał - |alok.|. Ujemny = nadalokacja."),
         },
         key="pos_editor",
     )
 
-    # P0: walidacja przed zapisem - hard block nie warning
+    # P0: walidacja vs KAPITAŁ grupy (nie sztywne 100)
     violations: list[str] = []
     new_pos: dict[str, dict] = {}
     for _, r in edited.iterrows():
+        gname = r["Grupa"]
         try:
             pos_dict = {
                 "SPX":     float(r["SPX"]),
@@ -593,12 +620,13 @@ def _admin_positions(data, sha) -> None:
                 "EURUSD":  float(r["EUR/USD"]),
             }
         except (TypeError, ValueError):
-            violations.append(f"{r['Grupa']}: nie-numeryczna wartość")
+            violations.append(f"{gname}: nie-numeryczna wartość")
             continue
-        errs = validate_positions(pos_dict, tolerance=ALLOCATION_TOLERANCE)
+        capital = capital_per_group.get(gname, 100.0)
+        errs = validate_positions(pos_dict, capital=capital)
         if errs:
-            violations.append(f"{r['Grupa']}: {'; '.join(errs)}")
-        new_pos[r["Grupa"]] = pos_dict
+            violations.append(f"{gname} (kap={capital:.2f}): {'; '.join(errs)}")
+        new_pos[gname] = pos_dict
 
     if violations:
         st.error(
@@ -822,6 +850,10 @@ def show_knf_tab(data) -> None:
                 mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
                 type="primary",
                 use_container_width=True,
+                on_click=lambda: (
+                    st.session_state.pop("knf_payload", None),
+                    st.session_state.pop("knf_filename", None),
+                ),
             )
         else:
             st.info("Kliknij **Wygeneruj raport** aby przygotować plik.")
@@ -867,10 +899,17 @@ def main() -> None:
     _render_kpis(hist, bench, n_done)
     _render_status_banners(pending, open_wks, any_provisional, prov_flags, labels)
 
-    tab_chart, tab_rank, tab_live, tab_detail, tab_pos, tab_admin, tab_knf = st.tabs([
-        "📈 Wykres", "🏆 Ranking", "🕯️ Rynek live",
-        "👤 Grupa", "📋 Pozycje", "⚙️ Admin", "📑 Raport KNF",
-    ])
+    # Admin i Raport KNF tylko dla zalogowanego admina (mniej śmieci na mobile,
+    # eliminuje "frustration tab" KNF pokazujący tylko warning gdy niezalogowany).
+    is_admin = admin_session_active()
+    tab_labels = ["📈 Wykres", "🏆 Ranking", "🕯️ Rynek live",
+                  "👤 Grupa", "📋 Pozycje"]
+    tab_labels.append("⚙️ Admin")
+    if is_admin:
+        tab_labels.append("📑 Raport KNF")
+    all_tabs = st.tabs(tab_labels)
+    tab_chart, tab_rank, tab_live, tab_detail, tab_pos, tab_admin = all_tabs[:6]
+    tab_knf = all_tabs[6] if is_admin else None
 
     with tab_rank:
         if n_done >= 1:
@@ -900,8 +939,9 @@ def main() -> None:
     with tab_admin:
         admin_panel(data, sha)
 
-    with tab_knf:
-        show_knf_tab(data)
+    if tab_knf is not None:
+        with tab_knf:
+            show_knf_tab(data)
 
 
 def _render_header(active_week, pending, open_wks, data, week_is_live,
@@ -944,18 +984,33 @@ def _render_kpis(hist, bench, n_done) -> None:
 
     m1, m2, m3, m4 = st.columns(4)
     with m1:
-        st.metric("Lider (po rozliczeniu)", leader_g,
-                  f"{leader_v:.3f} jp ({chg_leader:+.3f})")
+        st.metric(
+            "Lider (po rozliczeniu)", leader_g,
+            f"{leader_v:.3f} jp ({chg_leader:+.3f})",
+            help="Grupa z najwyższą wartością portfela po ostatnim zamkniętym "
+                 "tygodniu. Δ pokazuje zmianę względem poprzedniego tygodnia.",
+        )
     with m2:
-        st.metric("Średnia konkursu", f"{avg_v:.3f} jp",
-                  f"{avg_v - 100:+.3f} od startu")
+        st.metric(
+            "Średnia konkursu", f"{avg_v:.3f} jp",
+            f"{avg_v - 100:+.3f} od startu",
+            help="Średnia arytmetyczna wartości portfeli wszystkich grup. "
+                 "Każda grupa startuje z 100 j.p. (jednostek portfelowych).",
+        )
     with m3:
-        st.metric("Benchmark 4×25%", f"{bench_v:.3f} jp",
-                  f"{bench_v - 100:+.3f} od startu")
+        st.metric(
+            "Benchmark 4×25%", f"{bench_v:.3f} jp",
+            f"{bench_v - 100:+.3f} od startu",
+            help="Referencyjny portfel: 25% w każdym z 4 instrumentów (SPX, "
+                 "Złoto, Bond 10Y, EUR/USD), wszystko long, bez rebalansu.",
+        )
     with m4:
-        st.metric("Pokonało benchmark",
-                  f"{beat_bench}/{len(final)} grup",
-                  f"{beat_bench/len(final)*100:.0f}%")
+        st.metric(
+            "Pokonało benchmark",
+            f"{beat_bench}/{len(final)} grup",
+            f"{beat_bench/len(final)*100:.0f}%",
+            help="Liczba grup z wartością portfela wyższą niż benchmark 4×25%.",
+        )
     st.markdown("")
 
 
@@ -1069,7 +1124,10 @@ def _render_chart_tab(data, hist, bench, labels, groups_meta, n_done) -> None:
 
 def _render_live_tab(active_week, week_opens, active_opens_src) -> None:
     if not HAS_YF:
-        st.warning("Zainstaluj `yfinance` aby zobaczyć rynek live.")
+        st.warning(
+            "📡 Dane live chwilowo niedostępne — wrócą po przywróceniu "
+            "źródła Yahoo Finance. Wyniki tygodnia rozliczane z cen ze stooq.pl."
+        )
         return
     if active_week:
         live_opens = week_opens

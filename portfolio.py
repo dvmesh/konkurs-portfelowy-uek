@@ -106,12 +106,19 @@ def position_summary(positions: dict) -> dict:
     }
 
 
-def validate_positions(positions: dict, tolerance: float = 0.01) -> list[str]:
-    """Sprawdza pozycje grupy. Zwraca listę naruszeń (pustą gdy OK).
+def validate_positions(positions: dict, capital: float = 100.0,
+                       tolerance: float = 0.5) -> list[str]:
+    """Sprawdza pozycje grupy względem KAPITAŁU GRUPY (nie sztywne 100 j.p.).
 
-    P0: hard-block na |sum| > 100, NaN/inf, brak instrumentu.
+    Regulamin: |sum abs pozycji| ≤ kapitał startowy tygodnia. Ponieważ portfele
+    rosną/maleją między tygodniami, ten kapitał ≠ 100 dla większości grup po
+    pierwszym tygodniu. Pojedyncza pozycja też nie może przekroczyć kapitału.
+
+    Tolerance domyślnie 0.5 j.p. (input precyzja ~ 0.01 ale floats + zaokrąglenia).
     """
     errors: list[str] = []
+    if capital is None or capital <= 0:
+        capital = 100.0
     abs_sum = 0.0
     for inst in INSTRUMENTS:
         v = positions.get(inst)
@@ -125,9 +132,13 @@ def validate_positions(positions: dict, tolerance: float = 0.01) -> list[str]:
         if not math.isfinite(fv):
             errors.append(f"{inst}: wartość niefinitna ({fv})")
             continue
-        if abs(fv) > 100 + tolerance:
-            errors.append(f"{inst}: pojedyncza pozycja > 100 ({fv:+.2f})")
+        if abs(fv) > capital + tolerance:
+            errors.append(
+                f"{inst}: pojedyncza pozycja {fv:+.2f} > kapitał {capital:.2f}"
+            )
         abs_sum += abs(fv)
-    if abs_sum > 100 + tolerance:
-        errors.append(f"|sum| = {abs_sum:.2f} > 100 (nadalokacja)")
+    if abs_sum > capital + tolerance:
+        errors.append(
+            f"|sum| = {abs_sum:.2f} > kapitał {capital:.2f} (nadalokacja o {abs_sum - capital:+.2f})"
+        )
     return errors
