@@ -329,6 +329,19 @@ def show_positions_tab(data, hist) -> None:
     pending = data.get("pending_week", {})
     open_wks = [w for w in data.get("weeks", []) if not w.get("completed")]
 
+    if data.get("competition_ended"):
+        last_week = data.get("weeks", [])[-1] if data.get("weeks") else None
+        st.markdown(
+            '<div class="ended-banner-small">'
+            '🏁 <strong>Konkurs zakończony.</strong> Pozycje nie są już przyjmowane. '
+            'Pełne wyniki dostępne w zakładce <em>🏆 Wyniki finalne</em>.'
+            '</div>',
+            unsafe_allow_html=True,
+        )
+        if last_week:
+            _render_last_week_positions(data, hist, last_week)
+        return
+
     if pending.get("waiting_for_positions") and not open_wks:
         st.markdown(
             '<div class="pending-box">'
@@ -397,6 +410,67 @@ def show_positions_tab(data, hist) -> None:
                 st.metric(f"Otwarcie – {INST_SHORT[inst]}", opens.get(inst, "—"))
 
 
+def _render_last_week_positions(data, hist, week) -> None:
+    st.subheader(f"Pozycje końcowe — {html.escape(week['label'])}")
+    groups_meta = data.get("groups", {})
+    # wartości startowe = stan po przedostatnim tygodniu
+    if len(data.get("weeks", [])) >= 2:
+        prev = data["weeks"][-2]
+        start_vals = (prev.get("canonical_values") or {})
+    else:
+        start_vals = {}
+
+    rows = []
+    for g in GROUP_ORDER:
+        if g not in groups_meta:
+            continue
+        pos = (week.get("positions") or {}).get(g) or {}
+        meta = groups_meta[g]
+        start = start_vals.get(g, hist[g][-2] if g in hist and len(hist[g]) > 1 else 100.0)
+        end = (week.get("canonical_values") or {}).get(g,
+               hist[g][-1] if g in hist else 100.0)
+        alloc = sum(abs(pos.get(i) or 0) for i in INSTRUMENTS)
+        rows.append({
+            "Grupa":         g,
+            "Rok":           meta.get("year", "?"),
+            "S&P 500":       pos.get("SPX") or 0,
+            "Złoto":         pos.get("XAUUSD") or 0,
+            "Obligacje 10Y": pos.get("BOND10Y") or 0,
+            "EUR/USD":       pos.get("EURUSD") or 0,
+            "Wolne":         round(start - alloc, 3),
+            "Start":         round(start, 3),
+            "Koniec":        round(end, 3),
+            "Δ":             round(end - start, 3),
+        })
+
+    df = pd.DataFrame(rows)
+
+    def _color(val):
+        try: v = float(val)
+        except (TypeError, ValueError): return ""
+        if v > 0: return "color: #3fb950"
+        if v < 0: return "color: #f85149"
+        return ""
+
+    st.dataframe(
+        df.style.map(_color, subset=["S&P 500", "Złoto", "Obligacje 10Y", "EUR/USD", "Δ"]),
+        use_container_width=True, hide_index=True,
+    )
+    st.caption(
+        "Pozycje pokazują dyspozycje I roku na ostatni tydzień. Dla II roku "
+        "stan portfela jest autorytatywny (canonical_values) — pozycje "
+        "w arkuszu nie były publikowane w postaci kierunkowej."
+    )
+
+    closes = (week.get("prices") or {}).get("close") or {}
+    if closes:
+        st.markdown("##### Ceny zamknięcia tygodnia")
+        cols = st.columns(4)
+        for i, inst in enumerate(INSTRUMENTS):
+            with cols[i]:
+                st.metric(f"{INST_SHORT[inst]}", closes.get(inst, "—"))
+
+
 # ────────────────────────── panel admina ──────────────────────────
 
 
@@ -427,13 +501,69 @@ def admin_panel(data, sha) -> None:
         st.rerun()
     st.divider()
 
-    t1, t2, t3, t4 = st.tabs([
-        "Otwórz tydzień", "Pozycje", "Zamknij tydzień", "Uzupełnij ceny oficjalne",
+    if data.get("competition_ended"):
+        st.markdown(
+            '<div class="ended-banner-small">'
+            '🏁 <strong>Konkurs zakończony.</strong> Nowych tygodni nie można już '
+            'otwierać. Możesz wyłącznie skorygować oficjalne ceny historyczne '
+            'lub cofnąć tryb zakończenia poniżej.'
+            '</div>',
+            unsafe_allow_html=True,
+        )
+        with st.expander("⚠️ Cofnij tryb »konkurs zakończony« (do testów)"):
+            st.caption(
+                "Ustawia ``competition_ended = False``. Pending_week zostaje "
+                "pusty - i tak nie ma otwartego tygodnia."
+            )
+            if st.button("Cofnij zakończenie"):
+                data["competition_ended"] = False
+                ok, msg = save_data(data, sha)
+                st.success(msg) if ok else st.error(msg)
+                if ok:
+                    st.rerun()
+        t4_only, = st.tabs(["Uzupełnij ceny oficjalne"])
+        with t4_only:
+            _admin_update_prices(data, sha)
+        return
+
+    t1, t2, t3, t4, t5 = st.tabs([
+        "Otwórz tydzień", "Pozycje", "Zamknij tydzień",
+        "Uzupełnij ceny oficjalne", "🏁 Zakończ konkurs",
     ])
     with t1: _admin_open_week(data, sha)
     with t2: _admin_positions(data, sha)
     with t3: _admin_close_week(data, sha)
     with t4: _admin_update_prices(data, sha)
+    with t5: _admin_end_competition(data, sha)
+
+
+def _admin_end_competition(data, sha) -> None:
+    st.subheader("Zakończ konkurs")
+    st.caption(
+        "Ustawia flagę ``competition_ended = True``. Interfejs przechodzi w tryb "
+        "finałowy: blokada otwierania tygodnia, dedykowana zakładka »Wyniki finalne«, "
+        "wyłączony live ticker."
+    )
+    open_wks = [w for w in data.get("weeks", []) if not w.get("completed")]
+    if open_wks:
+        st.warning(
+            f"⚠️ Otwarty tydzień **{open_wks[-1]['label']}** — zamknij go "
+            "najpierw w zakładce »Zamknij tydzień«."
+        )
+    weeks_done = [w for w in data.get("weeks", []) if w.get("completed")]
+    st.markdown(f"**Zamkniętych tygodni:** {len(weeks_done)}")
+    end_date = st.text_input(
+        "Data zakończenia (do wyświetlenia)",
+        value=data.get("competition_end_date", "29.05.2026"),
+    )
+    if st.button("🏁 Zakończ konkurs", type="primary", disabled=bool(open_wks)):
+        data["competition_ended"] = True
+        data["competition_end_date"] = end_date.strip()
+        data.pop("pending_week", None)
+        ok, msg = save_data(data, sha)
+        st.success(msg) if ok else st.error(msg)
+        if ok:
+            st.rerun()
 
 
 def _admin_open_week(data, sha) -> None:
@@ -783,7 +913,7 @@ def _admin_close_week(data, sha) -> None:
 def show_knf_tab(data) -> None:
     st.header("📑 Raport KNF — dowód kompletny")
     st.markdown(
-        "Pełen raport Excel (13 arkuszy) ze wszystkimi obliczeniami, pozycjami "
+        "Pełen raport Excel (14 arkuszy) ze wszystkimi obliczeniami, pozycjami "
         "tydzień-po-tygodniu, metrykami ryzyka i audit logiem. Dostępny tylko "
         "dla zalogowanego administratora — zawiera dane osobowe uczestników."
     )
@@ -826,14 +956,15 @@ def show_knf_tab(data) -> None:
         "10. **Top/Bottom tygodnia** — najlepsi i najgorsi w każdym tygodniu\n"
         "11. **Audit log** — wszystkie zmiany w data.json z timestampami\n"
         "12. **Naruszenia regulaminu** — `|sum|>100`, brak pozycji, nieprawidłowości\n"
-        "13. **Benchmark vs portfele** — agregat tygodniowy (p25/p75, max-min spread)"
+        "13. **Benchmark vs portfele** — agregat tygodniowy (p25/p75, max-min spread)\n"
+        "14. **Wykresy** — 6 natywnych wykresów Excela (equity top6, ranking, risk/return scatter, instrumenty)"
     )
 
     st.divider()
     col_a, col_b = st.columns([2, 1])
     with col_b:
         if st.button("🔨 Wygeneruj raport", type="primary", use_container_width=True):
-            with st.spinner("Buduję raport KNF (13 arkuszy)..."):
+            with st.spinner("Buduję raport KNF (14 arkuszy)..."):
                 try:
                     payload = build_knf_workbook(data, audit)
                     st.session_state["knf_payload"] = payload
@@ -879,6 +1010,7 @@ def main() -> None:
     any_provisional = any(prov_flags)
     pending = data.get("pending_week", {})
     open_wks = [w for w in data.get("weeks", []) if not w.get("completed")]
+    competition_ended = bool(data.get("competition_ended"))
 
     active_week = open_wks[-1] if open_wks else None
     if active_week:
@@ -889,27 +1021,50 @@ def main() -> None:
         week_opens = {}
         active_opens_src = {}
     open_wk_pos = active_week.get("positions") or {} if active_week else {}
-    week_is_live = bool(active_week and week_opens and open_wk_pos and HAS_YF)
+    # Po zakończeniu konkursu live nie ma sensu — przełączamy w tryb finałowy.
+    week_is_live = bool(
+        not competition_ended and active_week and week_opens and open_wk_pos and HAS_YF
+    )
 
-    _render_header(active_week, pending, open_wks, data, week_is_live, groups_meta, n_done)
-    if week_opens and HAS_YF:
+    _render_header(active_week, pending, open_wks, data, week_is_live, groups_meta,
+                   n_done, competition_ended=competition_ended)
+    if week_opens and HAS_YF and not competition_ended:
         st.markdown("")
         live_ticker_bar(week_opens)
         st.markdown("")
     _render_kpis(hist, bench, n_done)
-    _render_status_banners(pending, open_wks, any_provisional, prov_flags, labels)
+    if competition_ended:
+        _render_final_banner(data, hist, bench)
+    _render_status_banners(pending, open_wks, any_provisional, prov_flags, labels,
+                           competition_ended=competition_ended)
 
     # Admin i Raport KNF tylko dla zalogowanego admina (mniej śmieci na mobile,
     # eliminuje "frustration tab" KNF pokazujący tylko warning gdy niezalogowany).
     is_admin = admin_session_active()
-    tab_labels = ["📈 Wykres", "🏆 Ranking", "🕯️ Rynek live",
-                  "👤 Grupa", "📋 Pozycje"]
+    tab_labels = []
+    if competition_ended:
+        tab_labels.append("🏆 Wyniki finalne")
+    tab_labels += ["📈 Wykres", "🏆 Ranking", "🕯️ Rynek live",
+                   "👤 Grupa", "📋 Pozycje"]
     tab_labels.append("⚙️ Admin")
     if is_admin:
         tab_labels.append("📑 Raport KNF")
     all_tabs = st.tabs(tab_labels)
-    tab_chart, tab_rank, tab_live, tab_detail, tab_pos, tab_admin = all_tabs[:6]
-    tab_knf = all_tabs[6] if is_admin else None
+    idx = 0
+    tab_final = all_tabs[idx] if competition_ended else None
+    if competition_ended:
+        idx += 1
+    tab_chart = all_tabs[idx]; idx += 1
+    tab_rank = all_tabs[idx]; idx += 1
+    tab_live = all_tabs[idx]; idx += 1
+    tab_detail = all_tabs[idx]; idx += 1
+    tab_pos = all_tabs[idx]; idx += 1
+    tab_admin = all_tabs[idx]; idx += 1
+    tab_knf = all_tabs[idx] if is_admin else None
+
+    if tab_final is not None:
+        with tab_final:
+            show_final_results_tab(data, hist, bench, groups_meta)
 
     with tab_rank:
         if n_done >= 1:
@@ -945,18 +1100,30 @@ def main() -> None:
 
 
 def _render_header(active_week, pending, open_wks, data, week_is_live,
-                   groups_meta, n_done) -> None:
+                   groups_meta, n_done, competition_ended=False) -> None:
     hcol, scol = st.columns([3, 1])
     with hcol:
-        live_html = '<span class="live-badge">LIVE</span>' if week_is_live else ""
+        if competition_ended:
+            status_badge = '<span class="ended-badge">ZAKOŃCZONY</span>'
+        elif week_is_live:
+            status_badge = '<span class="live-badge">LIVE</span>'
+        else:
+            status_badge = ""
         st.markdown(
             "<h1 style='margin-bottom:0'>"
             "<span class='title-full'>Konkurs Portfelowy | Rynki Finansowe | UEK | 2026</span>"
             "<span class='title-short'>Konkurs UEK · 2026</span> "
-            f"{live_html}</h1>",
+            f"{status_badge}</h1>",
             unsafe_allow_html=True,
         )
-        if pending.get("waiting_for_positions") and not open_wks:
+        if competition_ended:
+            end_date = data.get("competition_end_date", "29.05.2026")
+            st.markdown(
+                f"**Status:** Konkurs zakończony · ostatni tydzień: "
+                f"{html.escape(data['weeks'][-1]['label'])} · "
+                f"data zamknięcia: {html.escape(str(end_date))}"
+            )
+        elif pending.get("waiting_for_positions") and not open_wks:
             st.markdown("**Status:** Oczekiwanie na dyspozycje od prowadzącego")
         elif active_week:
             st.markdown(f"**Tydzień aktywny:** {html.escape(active_week['label'])}")
@@ -969,6 +1136,167 @@ def _render_header(active_week, pending, open_wks, data, week_is_live,
             f"<br>Start: 100 jp</div>",
             unsafe_allow_html=True,
         )
+
+
+def _render_final_banner(data, hist, bench) -> None:
+    ranking = data.get("final_ranking") or []
+    if ranking:
+        top3 = ranking[:3]
+    else:
+        finals = sorted(((g, v[-1]) for g, v in hist.items()),
+                        key=lambda x: x[1], reverse=True)[:3]
+        top3 = [{"group": g, "value": v, "place": i + 1, "year": None,
+                 "members": []} for i, (g, v) in enumerate(finals)]
+
+    chips_html = " · ".join(
+        f"<span class='final-chip'>{['🥇','🥈','🥉'][i]} "
+        f"{html.escape(item['group'])} <b>{item['value']:.2f}</b></span>"
+        for i, item in enumerate(top3)
+    )
+    bench_v = bench[-1] if bench else 100.0
+    st.markdown(
+        f"""<div class="ended-banner">
+<div style='font-size:1.05rem;font-weight:700;margin-bottom:.35rem'>
+🏁 Konkurs Portfelowy UEK 2026 — zakończony
+</div>
+<div style='font-size:.85rem;color:#c9d1d9;margin-bottom:.5rem'>
+Pozycje nie są już przyjmowane. Poniżej finalna klasyfikacja po
+{len(data.get('weeks', []))} tygodniach (benchmark 4×25%: {bench_v:.2f} jp).
+</div>
+<div style='display:flex;flex-wrap:wrap;gap:.4rem'>{chips_html}</div>
+</div>""",
+        unsafe_allow_html=True,
+    )
+
+
+def show_final_results_tab(data, hist, bench, groups_meta) -> None:
+    st.subheader("🏆 Wyniki finalne konkursu")
+    ranking = data.get("final_ranking") or []
+    end_date = data.get("competition_end_date", "29.05.2026")
+    n_weeks = len(data.get("weeks", []))
+
+    c1, c2, c3, c4 = st.columns(4)
+    bench_v = bench[-1] if bench else 100.0
+    if ranking:
+        winner = ranking[0]
+        beat_bench = sum(1 for r in ranking if r["value"] > bench_v)
+        avg_v = sum(r["value"] for r in ranking) / len(ranking)
+    else:
+        finals = [v[-1] for v in hist.values()]
+        winner = {"group": "—", "value": max(finals) if finals else 100.0}
+        beat_bench = sum(1 for v in finals if v > bench_v)
+        avg_v = sum(finals) / len(finals) if finals else 100.0
+
+    with c1: st.metric("🥇 Zwycięzca", winner["group"], f"{winner['value']:.3f} jp")
+    with c2: st.metric("Benchmark 4×25%", f"{bench_v:.3f} jp",
+                       f"{bench_v - 100:+.3f}")
+    with c3: st.metric("Średnia konkursu", f"{avg_v:.3f} jp",
+                       f"{avg_v - 100:+.3f}")
+    with c4: st.metric("Pokonało benchmark",
+                       f"{beat_bench}/{len(ranking) or len(hist)}")
+    st.caption(f"Data zakończenia: **{html.escape(str(end_date))}** · "
+               f"Rozegranych tygodni: **{n_weeks}** · Start: 100 jp")
+
+    st.markdown("### Klasyfikacja końcowa (oba lata)")
+    rows = []
+    for r in ranking:
+        meta = groups_meta.get(r["group"], {})
+        members = r.get("members") or meta.get("members", [])
+        rows.append({
+            "Miejsce":  r["place"],
+            "Grupa":    r["group"],
+            "Rok":      f"Rok {r.get('year', meta.get('year', '?'))}",
+            "Wynik":    r["value"],
+            "Δ start":  r["value"] - 100,
+            "vs Bench": r["value"] - bench_v,
+            "Skład":    ", ".join(members),
+        })
+
+    if rows:
+        df = pd.DataFrame(rows)
+
+        def _clr_delta(v):
+            if not isinstance(v, (int, float)):
+                return ""
+            if v > 0: return "color:#3fb950;font-weight:600"
+            if v < 0: return "color:#f85149"
+            return ""
+
+        def _clr_place(v):
+            if v == 1: return "color:#FFD700;font-weight:700"
+            if v == 2: return "color:#C0C0C0;font-weight:700"
+            if v == 3: return "color:#CD7F32;font-weight:700"
+            return ""
+
+        styled = (
+            df.style
+            .format({"Wynik": "{:.3f}", "Δ start": "{:+.3f}", "vs Bench": "{:+.3f}"})
+            .map(_clr_delta, subset=["Δ start", "vs Bench"])
+            .map(_clr_place, subset=["Miejsce"])
+        )
+        st.dataframe(styled, use_container_width=True, hide_index=True,
+                     column_config={
+                         "Miejsce":  st.column_config.NumberColumn(width=70, format="%d"),
+                         "Grupa":    st.column_config.TextColumn(width=90),
+                         "Rok":      st.column_config.TextColumn(width=70),
+                         "Wynik":    st.column_config.NumberColumn(format="%.3f", width=100),
+                         "Δ start":  st.column_config.NumberColumn(format="%+.3f", width=90),
+                         "vs Bench": st.column_config.NumberColumn(format="%+.3f", width=90),
+                         "Skład":    st.column_config.TextColumn(width=320),
+                     })
+
+        st.markdown("### Najlepsi per rok")
+        rc1, rc2 = st.columns(2)
+        for col, yr in zip([rc1, rc2], [1, 2]):
+            with col:
+                st.markdown(f"**Rok {yr}**")
+                yr_rows = [r for r in rows if r["Rok"] == f"Rok {yr}"]
+                yr_rows.sort(key=lambda x: x["Wynik"], reverse=True)
+                yr_df = pd.DataFrame(yr_rows)
+                if not yr_df.empty:
+                    yr_df.insert(0, "Msc", range(1, len(yr_df) + 1))
+                    st.dataframe(
+                        yr_df[["Msc", "Grupa", "Wynik", "Δ start"]].style.format({
+                            "Wynik": "{:.3f}", "Δ start": "{:+.3f}",
+                        }),
+                        use_container_width=True, hide_index=True,
+                    )
+    else:
+        st.info("Brak danych rankingu finalnego w data.json.")
+
+    # equity curve do końca
+    st.markdown("### Equity curve — całość konkursu")
+    if hist and bench:
+        labels_local = ["Start"] + [w["label"] for w in data.get("weeks", [])
+                                    if w.get("completed")]
+        # przytnij do najkrótszej (na wypadek desync)
+        n = min(len(labels_local), len(bench), min(len(v) for v in hist.values()))
+        labels_local = labels_local[:n]
+        bench_local = bench[:n]
+        avg_local = [sum(v[i] for v in hist.values()) / len(hist) for i in range(n)]
+
+        fig = go.Figure()
+        fig.add_trace(go.Scatter(x=labels_local, y=bench_local, name="benchmark 4×25%",
+                                 line=dict(color="#FF6B35", width=2, dash="dash")))
+        fig.add_trace(go.Scatter(x=labels_local, y=avg_local, name="średnia konkursu",
+                                 line=dict(color="#4A9EFF", width=2, dash="dot")))
+        # top 3
+        for i, item in enumerate(ranking[:3]):
+            g = item["group"]
+            if g in hist:
+                fig.add_trace(go.Scatter(
+                    x=labels_local, y=hist[g][:n], name=f"{['🥇','🥈','🥉'][i]} {g}",
+                    line=dict(width=3, color=["#FFD700", "#C0C0C0", "#CD7F32"][i]),
+                    mode="lines+markers", marker=dict(size=7),
+                ))
+        fig.add_hline(y=100, line_dash="dot", line_color="rgba(255,255,255,0.12)")
+        fig.update_layout(
+            template="plotly_dark",
+            paper_bgcolor="rgba(0,0,0,0)", plot_bgcolor="rgba(0,0,0,0)",
+            height=420, margin=dict(l=40, r=20, t=10, b=30),
+            legend=dict(orientation="h", y=-0.2), yaxis=dict(title="j.p."),
+        )
+        st.plotly_chart(fig, use_container_width=True)
 
 
 def _render_kpis(hist, bench, n_done) -> None:
@@ -1014,7 +1342,11 @@ def _render_kpis(hist, bench, n_done) -> None:
     st.markdown("")
 
 
-def _render_status_banners(pending, open_wks, any_provisional, prov_flags, labels) -> None:
+def _render_status_banners(pending, open_wks, any_provisional, prov_flags, labels,
+                           competition_ended=False) -> None:
+    if competition_ended:
+        # Banner finałowy ma pierwszeństwo nad oczekiwaniem na pozycje.
+        return
     if pending.get("waiting_for_positions") and not open_wks:
         st.markdown(
             '<div class="pending-box">⏳ <strong>Oczekiwanie na nowe pozycje.</strong> '

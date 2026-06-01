@@ -39,6 +39,43 @@ section[data-testid="stSidebar"]   { background: #161b22; }
     margin-left: 8px;
     animation: pulse 2s infinite;
 }
+.ended-badge {
+    display: inline-block;
+    background: linear-gradient(135deg, #2b1d05 0%, #3a2807 100%);
+    border: 1px solid #d29922;
+    color: #ffd055;
+    font-size: 0.72rem;
+    font-weight: 700;
+    padding: 2px 9px;
+    border-radius: 20px;
+    letter-spacing: 0.08em;
+    vertical-align: middle;
+    margin-left: 8px;
+}
+.ended-banner {
+    background: linear-gradient(135deg, #1c1600 0%, #261c08 100%);
+    border: 1px solid #d29922;
+    border-radius: 10px;
+    padding: 0.9rem 1.2rem;
+    margin: 0.4rem 0 1rem;
+}
+.ended-banner-small {
+    background: #1c1600;
+    border: 1px solid #d29922;
+    color: #e6c87a;
+    border-radius: 8px;
+    padding: 0.55rem 0.9rem;
+    margin: 0.4rem 0 0.9rem;
+    font-size: 0.88rem;
+}
+.final-chip {
+    background: #161b22;
+    border: 1px solid #30363d;
+    border-radius: 16px;
+    padding: 3px 10px;
+    font-size: 0.85rem;
+    color: #e6edf3;
+}
 @keyframes pulse {
     0%,100% { opacity:1; }
     50%      { opacity:0.5; }

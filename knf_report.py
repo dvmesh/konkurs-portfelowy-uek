@@ -2,20 +2,21 @@
 
 build_knf_workbook(data, audit) -> bytes
 
-13 arkuszy:
+14 arkuszy:
   1. Strona tytułowa     (meta, hash, podpisy)
   2. Uczestnicy          (lista grup + skład)
-  3. Pozycje (long-form) (tydzień×grupa×instrument z flagą zgodności)
-  4. Pozycje (pivot)     (macierz heat-mapowana)
-  5. Ceny tygodniowe     (open/close, źródło, Δ%)
+  3. Pozycje (long-form) (tydzień×grupa×instrument z flagą zgodności kapitałowej)
+  4. Pozycje (pivot)     (macierz heat-mapowana, long zielony / short czerwony)
+  5. Ceny tygodniowe     (open/close, źródło stooq/yfinance, Δ%)
   6. P&L per tydzień     (dekompozycja zysku per instrument)
   7. Equity curve        (wartość portfela tygodniowo + benchmark)
   8. Ranking końcowy     (miejsce, ROI, vs benchmark, Sharpe, vol, max DD)
   9. Metryki ryzyka      (Sharpe, vol, max DD, win-rate, long/short alok.)
  10. Top/Bottom tygodnia (komentarz dla każdego tygodnia)
  11. Audit log           (timestamp zmian data.json)
- 12. Naruszenia regulam. (|sum|>100, brak pozycji, edycje po starcie)
- 13. Benchmark           (benchmark vs portfele - tygodniowo)
+ 12. Naruszenia regulam. (|sum|>kapitał, brak pozycji, nadalokacja)
+ 13. Benchmark vs portfele (benchmark vs średnia/p25/p75/min/max tygodniowo)
+ 14. Wykresy            (6 natywnych wykresów Excel: equity, ranking, scatter, etc.)
 """
 from __future__ import annotations
 
